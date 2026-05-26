@@ -141,6 +141,16 @@ export default function Player() {
 
   const progressPercent = duration > 0 ? (currentTime / duration) * 100 : 0;
 
+  const primaryLicense = activeBeat ? (() => {
+    if (activeBeat.exclusiveSold) return null;
+    const nonExclAvailable = activeBeat.nonExclusiveEnabled && (activeBeat.nonExclusiveCap === null || (activeBeat.nonExclusiveSold || 0) < activeBeat.nonExclusiveCap);
+    if (nonExclAvailable) return { type: "non-exclusive" as LicenseType, price: activeBeat.nonExclusivePrice };
+    if (activeBeat.exclusiveEnabled) return { type: "exclusive" as LicenseType, price: activeBeat.exclusivePrice };
+    return null;
+  })() : null;
+
+  const isNonExclAvailable = activeBeat ? (activeBeat.nonExclusiveEnabled && (activeBeat.nonExclusiveCap === null || (activeBeat.nonExclusiveSold || 0) < activeBeat.nonExclusiveCap)) : false;
+
   return (
     <div className="fixed bottom-0 left-0 right-0 z-50">
       {/* Error Banner */}
@@ -385,17 +395,17 @@ export default function Player() {
             ) : (
               <>
                 <button
-                  onClick={() => handleCheckoutClick("non-exclusive")}
-                  disabled={!activeBeat}
+                  onClick={() => handleCheckoutClick(primaryLicense?.type || "non-exclusive")}
+                  disabled={!activeBeat || !primaryLicense}
                   className="btn-primary h-9 pl-4 pr-3.5 flex items-center gap-2 text-[11px] disabled:opacity-40 disabled:cursor-not-allowed rounded-r-none border-r border-accent-fg/10"
                 >
                   <ShoppingBag className="w-3.5 h-3.5" />
-                  BUY — ${activeBeat ? activeBeat.nonExclusivePrice.toFixed(2) : "0.00"}
+                  BUY — ${primaryLicense ? primaryLicense.price.toFixed(2) : "0.00"}
                 </button>
                 
                 <button
                   onClick={() => activeBeat && setDropdownOpen(!dropdownOpen)}
-                  disabled={!activeBeat}
+                  disabled={!activeBeat || !primaryLicense}
                   className="btn-primary h-9 px-2 flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed rounded-l-none"
                   aria-label="Choose License Type"
                 >
@@ -415,19 +425,22 @@ export default function Player() {
 
                 {activeBeat.nonExclusiveEnabled && (
                   <button
-                    onClick={() => handleCheckoutClick("non-exclusive")}
-                    className="w-full text-left p-2 rounded-md hover:bg-bg-hover transition-colors flex flex-col group"
+                    onClick={() => isNonExclAvailable && handleCheckoutClick("non-exclusive")}
+                    disabled={!isNonExclAvailable}
+                    className={`w-full text-left p-2 rounded-md transition-colors flex flex-col group ${isNonExclAvailable ? 'hover:bg-bg-hover cursor-pointer' : 'opacity-50 cursor-not-allowed'}`}
                   >
                     <div className="flex justify-between items-center w-full">
-                      <span className="font-syne font-medium text-[12px] text-text-primary group-hover:text-accent">
+                      <span className={`font-syne font-medium text-[12px] ${isNonExclAvailable ? 'text-text-primary group-hover:text-accent' : 'text-text-muted'}`}>
                         Non-Exclusive
                       </span>
-                      <span className="font-mono text-[12px] text-text-primary">
+                      <span className={`font-mono text-[12px] ${isNonExclAvailable ? 'text-text-primary' : 'text-text-muted'}`}>
                         ${activeBeat.nonExclusivePrice.toFixed(2)}
                       </span>
                     </div>
                     <span className="text-[10px] text-text-muted mt-0.5">
-                      Stream / upload capabilities, royalty caps
+                      {isNonExclAvailable 
+                        ? "Stream / upload capabilities, royalty caps"
+                        : "Sales cap reached for this license"}
                     </span>
                   </button>
                 )}

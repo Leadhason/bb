@@ -21,7 +21,8 @@ export default function BeatDetailModal() {
     openCheckout,
     showToast,
     toggleRepeatMode,
-    clearAudioError
+    clearAudioError,
+    audioAnalyzer
   } = useStore();
 
   const [selectedLicense, setSelectedLicense] = useState<LicenseType>("non-exclusive");
@@ -103,10 +104,7 @@ export default function BeatDetailModal() {
     };
   }, [isDraggingWaveform, duration, handleWaveMove]);
 
-  // If modal closed, return null (AFTER all hooks are called)
-  if (!detailModalBeat) return null;
-
-  const isCurrentPlaying = activeBeat?.id === detailModalBeat.id;
+  const isCurrentPlaying = activeBeat?.id === detailModalBeat?.id;
 
   // Generate 60 static height bars representing a pre-generated waveform based on beat ID
   const generateWaveformHeights = (id: string) => {
@@ -120,7 +118,49 @@ export default function BeatDetailModal() {
     return heights;
   };
 
-  const waveHeights = generateWaveformHeights(detailModalBeat.id);
+  const baseHeights = React.useMemo(() => generateWaveformHeights(detailModalBeat?.id || "fallback"), [detailModalBeat?.id]);
+  const [liveHeights, setLiveHeights] = useState<number[]>(baseHeights);
+
+  useEffect(() => {
+    if (!audioAnalyzer || !isPlaying || !isCurrentPlaying) {
+      setLiveHeights(baseHeights);
+      return;
+    }
+
+    const dataArray = new Uint8Array(audioAnalyzer.frequencyBinCount);
+    let animationId: number;
+
+    const animate = () => {
+      audioAnalyzer.getByteFrequencyData(dataArray);
+      
+      const newHeights: number[] = [];
+      const step = Math.floor(dataArray.length / 60);
+      
+      for (let i = 0; i < 60; i++) {
+        let sum = 0;
+        let count = 0;
+        for (let j = 0; j < step && i * step + j < dataArray.length; j++) {
+           sum += dataArray[i * step + j];
+           count++;
+        }
+        const avg = count > 0 ? sum / count : 0;
+        
+        // Base structure + frequency bump (up to 80% extra)
+        const bump = Math.pow(avg / 255, 1.5) * 80; 
+        const finalHeight = Math.min(100, Math.max(10, baseHeights[i] * 0.3 + bump));
+        newHeights.push(Math.round(finalHeight));
+      }
+      
+      setLiveHeights(newHeights);
+      animationId = requestAnimationFrame(animate);
+    };
+
+    animationId = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(animationId);
+  }, [audioAnalyzer, isPlaying, isCurrentPlaying, baseHeights]);
+
+  // If modal closed, return null (AFTER all hooks are called)
+  if (!detailModalBeat) return null;
 
   const handleDownload = () => {
     showToast(`Downloading free MP3 preview: ${detailModalBeat.title}`, "success");
@@ -214,9 +254,9 @@ export default function BeatDetailModal() {
 
             {/* Mood tags */}
             <div className="flex flex-wrap gap-1.5">
-              {detailModalBeat.tags.map((tag) => (
+              {detailModalBeat.tags.map((tag, index) => (
                 <span 
-                  key={tag} 
+                  key={`${tag}-${index}`} 
                   className="text-[11px] bg-bg-overlay border border-border-subtle text-text-secondary px-2.5 py-0.5 rounded-[var(--radius-sm)]"
                 >
                   {tag}
@@ -285,7 +325,7 @@ export default function BeatDetailModal() {
             aria-valuetext={`${Math.floor(currentTime / 60)}:${String(Math.floor(currentTime % 60)).padStart(2, "0")} / ${Math.floor(duration / 60) || 0}:${String(Math.floor(duration % 60) || 0).padStart(2, "0")}`}
             title="Click and drag to seek playback"
           >
-            {waveHeights.map((ht, idx) => {
+            {liveHeights.map((ht, idx) => {
               const barProgress = idx / 60;
               const isPlayed = barProgress <= activeProgressPct;
               return (

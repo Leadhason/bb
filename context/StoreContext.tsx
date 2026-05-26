@@ -97,20 +97,8 @@ interface StoreContextType {
   toggleRepeatMode: () => void;
   clearAudioError: () => void;
 
-  // Phase 3: Queue system
-  queue: Beat[];
-  addToQueue: (beat: Beat) => void;
-  removeFromQueue: (beatId: string) => void;
-  clearQueue: () => void;
-  playQueue: (startIndex: number) => void;
-
-  // Phase 3: Recently played history
-  recentlyPlayed: Beat[];
-  clearHistory: () => void;
-
   // Phase 3: Web Audio visualizer
   audioAnalyzer: AnalyserNode | null;
-  frequencyData: Uint8Array | null;
 
   // Modal states
   detailModalBeat: Beat | null;
@@ -179,29 +167,11 @@ export function StoreProvider({ children, initialBeats = [] }: { children: React
     return 0.8;
   });
 
-  // Phase 3: Queue and history
-  const [queue, setQueue] = useState<Beat[]>([]);
-  const [recentlyPlayed, setRecentlyPlayed] = useState<Beat[]>(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("beat-store-recently-played");
-      if (saved) {
-        try {
-          return JSON.parse(saved) as Beat[];
-        } catch {
-          return [];
-        }
-      }
-    }
-    return [];
-  });
-
   // Phase 3: Web Audio
   const [audioAnalyzer, setAudioAnalyzer] = useState<AnalyserNode | null>(null);
-  const [frequencyData, setFrequencyData] = useState<Uint8Array | null>(null);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const analyzerRef = useRef<AnalyserNode | null>(null);
-  const frequencyDataRef = useRef<Uint8Array | null>(null);
   const animationIdRef = useRef<number | null>(null);
   const lastPlayedRef = useRef<string | null>(null);
 
@@ -284,11 +254,38 @@ export function StoreProvider({ children, initialBeats = [] }: { children: React
     });
   }, [allBeats]);
 
-  // Audio setup
+  // Audio & Web Audio setup
   useEffect(() => {
-    audioRef.current = new Audio();
-    
+    if (audioRef.current) return; // Only run once
+
+    const audio = new Audio();
+    // audio.crossOrigin = "anonymous"; // Temporarily disabled to allow SoundHelix dummy data to play. Must be enabled for Supabase & Web Audio API to work.
+    audio.volume = volume;
+    audioRef.current = audio;
+
+    if (typeof AudioContext !== "undefined") {
+      try {
+        const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+        const analyser = audioContext.createAnalyser();
+        analyser.fftSize = 256; // 128 frequency bands
+        
+        if (audioContext.createMediaElementAudioSource) {
+          const source = audioContext.createMediaElementAudioSource(audio);
+          source.connect(analyser);
+          analyser.connect(audioContext.destination);
+        }
+
+        setAudioAnalyzer(analyser);
+      } catch (error) {
+        console.warn("Web Audio API unavailable:", error);
+      }
+    }
+  }, []);
+
+  // Audio Event Listeners (Attach/Detach on dependency change without recreating audio object)
+  useEffect(() => {
     const audio = audioRef.current;
+    if (!audio) return;
 
     const handlePlay = () => {
       setIsPlaying(true);
@@ -344,7 +341,6 @@ export function StoreProvider({ children, initialBeats = [] }: { children: React
     audio.addEventListener("error", handleError);
 
     return () => {
-      audio.pause();
       audio.removeEventListener("play", handlePlay);
       audio.removeEventListener("pause", handlePause);
       audio.removeEventListener("timeupdate", handleTimeUpdate);
@@ -650,53 +646,7 @@ export function StoreProvider({ children, initialBeats = [] }: { children: React
     showToast("Purchase complete! Email sent.", "success");
   };
 
-  // Phase 3: Queue management functions
-  const addToQueue = useCallback((beat: Beat) => {
-    setQueue((prev) => {
-      // Avoid duplicates
-      if (prev.find((b) => b.id === beat.id)) return prev;
-      return [...prev, beat];
-    });
-    showToast(`Added "${beat.title}" to queue`, "success");
-  }, [showToast]);
 
-  const removeFromQueue = useCallback((beatId: string) => {
-    setQueue((prev) => prev.filter((b) => b.id !== beatId));
-  }, []);
-
-  const clearQueue = useCallback(() => {
-    setQueue([]);
-    showToast("Queue cleared", "neutral");
-  }, [showToast]);
-
-  const playQueue = useCallback(
-    (startIndex: number) => {
-      if (startIndex >= 0 && startIndex < queue.length) {
-        playBeat(queue[startIndex]);
-      }
-    },
-    [queue, playBeat]
-  );
-
-  // Phase 3: Recently played history
-  const clearHistory = useCallback(() => {
-    setRecentlyPlayed([]);
-    localStorage.removeItem("beat-store-recently-played");
-    showToast("History cleared", "neutral");
-  }, [showToast]);
-
-  // Add beat to recently played when playback starts
-  useEffect(() => {
-    if (isPlaying && activeBeat && lastPlayedRef.current !== activeBeat.id) {
-      lastPlayedRef.current = activeBeat.id;
-      setRecentlyPlayed((prev) => {
-        const filtered = prev.filter((b) => b.id !== activeBeat.id);
-        const updated = [activeBeat, ...filtered].slice(0, 50); // Keep last 50
-        localStorage.setItem("beat-store-recently-played", JSON.stringify(updated));
-        return updated;
-      });
-    }
-  }, [isPlaying, activeBeat]);
 
   // Phase 3: Media Session API - Update metadata when beat changes
   useEffect(() => {
@@ -745,50 +695,7 @@ export function StoreProvider({ children, initialBeats = [] }: { children: React
     }
   }, [activeBeat, isPlaying, skipNext, skipPrevious, seek]);
 
-  // Phase 3: Web Audio API setup for visualization
-  useEffect(() => {
-    if (!audioRef.current || typeof AudioContext === "undefined") return;
 
-    try {
-      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-      const analyser = audioContext.createAnalyser();
-      analyser.fftSize = 256; // 128 frequency bands
-      
-      // Connect audio element to analyser
-      if (audioContext.createMediaElementAudioSource) {
-        const source = audioContext.createMediaElementAudioSource(audioRef.current);
-        source.connect(analyser);
-        analyser.connect(audioContext.destination);
-      }
-
-      setAudioAnalyzer(analyser);
-      
-      // Create typed array for frequency data
-      const dataArray = new Uint8Array(analyser.frequencyBinCount);
-      setFrequencyData(dataArray);
-
-      return () => {
-        // Cleanup if needed
-      };
-    } catch (error) {
-      // Web Audio API not supported or blocked
-      console.warn("Web Audio API unavailable:", error);
-    }
-  }, []);
-
-  // Update frequency data for visualization
-  useEffect(() => {
-    if (!audioAnalyzer || !frequencyData || !isPlaying) return;
-
-    const animate = () => {
-      audioAnalyzer.getByteFrequencyData(frequencyData);
-      setFrequencyData(new Uint8Array(frequencyData));
-      requestAnimationFrame(animate);
-    };
-
-    const frameId = requestAnimationFrame(animate);
-    return () => cancelAnimationFrame(frameId);
-  }, [audioAnalyzer, frequencyData, isPlaying]);
 
   return (
     <StoreContext.Provider
@@ -834,17 +741,7 @@ export function StoreProvider({ children, initialBeats = [] }: { children: React
         toggleRepeatMode,
         clearAudioError,
 
-        queue,
-        addToQueue,
-        removeFromQueue,
-        clearQueue,
-        playQueue,
-
-        recentlyPlayed,
-        clearHistory,
-
         audioAnalyzer,
-        frequencyData,
 
         detailModalBeat,
         setDetailModalBeat,
