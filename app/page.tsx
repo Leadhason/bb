@@ -1,65 +1,111 @@
-import Image from "next/image";
+import React from "react";
+import prisma from "../lib/prisma";
+import BeatCatalogue from "../components/BeatCatalogue";
+import BeatDetailModal from "../components/BeatDetailModal";
+import CheckoutModal from "../components/CheckoutModal";
+import { Music, AlertCircle, ShoppingBag, ShieldCheck, Mail } from "lucide-react";
+import Link from "next/link";
 
-export default function Home() {
+export default async function Home() {
+
+  const beats = await prisma.beat.findMany({
+    where: { published: true },
+    orderBy: { createdAt: "desc" },
+  });
+
+  // Data needs to be serialized for Client Components
+  const serializedBeats = beats.map((b: typeof beats[0]) => ({
+    ...b,
+    createdAt: b.createdAt.toISOString(),
+    nonExclusivePrice: Number(b.nonExclusivePrice),
+    exclusivePrice: Number(b.exclusivePrice),
+    coverColor: "from-neutral-800 to-neutral-900" // We can generate or store this dynamically later
+  }));
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+    <div className="flex flex-col gap-12 w-full pb-10">
+      
+      {/* 1. Main Beat Catalogue Catalog Area */}
+      <section className="w-full">
+        <BeatCatalogue beats={serializedBeats} />
+      </section>
+
+      {/* 2. Educational Pitch & Trust Banners */}
+      <section className="grid grid-cols-1 md:grid-cols-3 gap-6 border-t border-border-default pt-12 select-none">
+        
+        {/* Pitch 1 */}
+        <div className="bg-bg-surface border border-border-subtle rounded-xl p-5 hover:border-border-default transition-colors">
+          <div className="w-9 h-9 rounded-md bg-bg-elevated flex items-center justify-center mb-3">
+            <Music className="w-4 h-4 text-text-secondary" />
+          </div>
+          <h3 className="font-syne font-semibold text-[14px] text-text-primary uppercase tracking-wider mb-2">
+            Royalty-Free Previews
+          </h3>
+          <p className="text-[12px] text-text-secondary leading-relaxed">
+            All loop previews are watermarked to protect original production. Download free previews to record test vocals.
           </p>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+
+        {/* Pitch 2 */}
+        <div className="bg-bg-surface border border-border-subtle rounded-xl p-5 hover:border-border-default transition-colors">
+          <div className="w-9 h-9 rounded-md bg-bg-elevated flex items-center justify-center mb-3">
+            <ShieldCheck className="w-4 h-4 text-text-secondary" />
+          </div>
+          <h3 className="font-syne font-semibold text-[14px] text-text-primary uppercase tracking-wider mb-2">
+            Secure Delivery
+          </h3>
+          <p className="text-[12px] text-text-secondary leading-relaxed">
+            Instant high-quality WAV files, MP3 stems, and exclusive copyright contracts delivered to your inbox post-payment.
+          </p>
         </div>
-      </main>
+
+        {/* Pitch 3 */}
+        <div className="bg-bg-surface border border-border-subtle rounded-xl p-5 hover:border-border-default transition-colors">
+          <div className="w-9 h-9 rounded-md bg-bg-elevated flex items-center justify-center mb-3">
+            <ShoppingBag className="w-4 h-4 text-text-secondary" />
+          </div>
+          <h3 className="font-syne font-semibold text-[14px] text-text-primary uppercase tracking-wider mb-2">
+            Flexible Licensing
+          </h3>
+          <p className="text-[12px] text-text-secondary leading-relaxed">
+            Choose between standard Non-Exclusive streams, or buy sole Exclusive rights to take the beat off the market.
+          </p>
+        </div>
+
+      </section>
+
+      {/* 3. Footer Help Area / Lost Links recovery */}
+      <section id="contact" className="bg-bg-surface border border-border-default rounded-xl p-6 md:p-8 flex flex-col md:flex-row justify-between items-center gap-6 mt-6">
+        <div>
+          <h3 className="font-syne font-bold text-[18px] text-text-primary uppercase tracking-wider">
+            Lost your download link?
+          </h3>
+          <p className="text-[12px] text-text-secondary mt-1.5 max-w-[480px] leading-relaxed">
+            Did your email link expire or get buried in spam? We offer automatic retrieval options. Enter your email and reference to recover them.
+          </p>
+        </div>
+        <div className="flex gap-3 w-full md:w-auto">
+          <Link 
+            href="/resend-link" 
+            className="btn-secondary h-10 px-5 text-[12px] uppercase font-syne font-medium flex items-center justify-center gap-1.5 flex-1 md:flex-none"
+          >
+            <Mail className="w-4 h-4" />
+            Recover Link
+          </Link>
+          <Link 
+            href="/licensing" 
+            className="btn-primary h-10 px-5 text-[12px] uppercase font-syne font-medium flex items-center justify-center gap-1.5 flex-1 md:flex-none"
+          >
+            <AlertCircle className="w-4 h-4 text-accent-fg" />
+            View Pricing Tiers
+          </Link>
+        </div>
+      </section>
+
+      {/* 4. Active Overlays State Gate */}
+      <BeatDetailModal />
+      <CheckoutModal />
+
     </div>
   );
 }

@@ -1,0 +1,113 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")  
+}
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["driverAdapters"]
+}
+
+model Beat {
+  id                  String   @id @default(uuid())
+  title               String
+  bpm                 Int
+  key                 String
+  genre               String
+  tags                String[]
+  coverUrl            String
+  mp3Url              String
+  wavUrl              String
+  nonExclusiveEnabled Boolean  @default(true)
+  nonExclusivePrice   Decimal
+  nonExclusiveCap     Int?
+  exclusiveEnabled    Boolean  @default(true)
+  exclusivePrice      Decimal
+  exclusiveSold       Boolean  @default(false)
+  published           Boolean  @default(true)
+  createdAt           DateTime @default(now())
+  orders              Order[]
+
+  @@map("beats")
+}
+
+model Customer {
+  id        String   @id @default(uuid())
+  clerkId   String?  @unique
+  email     String   @unique
+  name      String
+  createdAt DateTime @default(now())
+  orders    Order[]
+
+  @@map("customers")
+}
+
+enum LicenseType {
+  NON_EXCLUSIVE
+  EXCLUSIVE
+}
+
+model Order {
+  id                String      @id @default(uuid())
+  reference         String      @unique
+  customerId        String
+  beatId            String
+  licenseType       LicenseType
+  amountUsd         Decimal
+  paystackReference String      @unique
+  downloadAttempts  Int         @default(0)
+  linkExpiresAt     DateTime
+  createdAt         DateTime    @default(now())
+  customer          Customer    @relation(fields: [customerId], references: [id])
+  beat              Beat        @relation(fields: [beatId], references: [id])
+
+  @@map("orders")
+}
+
+enum DiscountType {
+  PERCENTAGE
+  FIXED
+}
+
+model DiscountCode {
+  id         String       @id @default(uuid())
+  code       String       @unique
+  type       DiscountType
+  value      Decimal
+  usageLimit Int?
+  usageCount Int          @default(0)
+  expiresAt  DateTime?
+  active     Boolean      @default(true)
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+
+  @@map("discount_codes")
+}
+
+model BulkDiscountRule {
+  id              String   @id @default(uuid())
+  minQuantity     Int
+  discountPercent Decimal
+  stackable       Boolean  @default(false)
+  active          Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("bulk_discount_rules")
+}
+
+model Store {
+  id               String   @id @default(uuid())
+  name             String
+  bio              String   @default("")
+  profileImageUrl  String?
+  twitterUrl       String?
+  instagramUrl     String?
+  tiktokUrl        String?
+  discordUrl       String?
+  featuredBeatIds  String[] @default([])
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@map("store")
+}
