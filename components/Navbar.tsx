@@ -28,7 +28,7 @@ export default function Navbar() {
           className="font-syne font-bold text-[16px] tracking-[0.12em] text-text-primary flex items-center gap-2 hover:opacity-85 transition-opacity"
         >
           <Disc className="w-5 h-5 animate-[spin_6s_linear_infinite]" />
-          BEATSTORE
+          BLINGSBEATS
         </Link>
 
         {/* Desktop Nav Links */}
