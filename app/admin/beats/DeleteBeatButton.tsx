@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { Trash2, Loader } from "lucide-react";
+import { Trash2, Loader2 } from "lucide-react";
 import { deleteBeat } from "./actions";
 import { useStore } from "../../../context/StoreContext";
 
@@ -37,7 +37,7 @@ export function DeleteBeatButton({ beatId, beatTitle }: { beatId: string; beatTi
           disabled={isLoading}
           className="btn-danger h-8 px-3 text-xs uppercase font-syne font-medium flex items-center gap-1"
         >
-          {isLoading ? <Loader className="w-3 h-3 animate-spin" /> : "Delete"}
+          {isLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : "Delete"}
         </button>
         <button
           onClick={() => setShowConfirm(false)}

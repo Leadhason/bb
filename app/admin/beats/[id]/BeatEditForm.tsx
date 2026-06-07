@@ -18,7 +18,7 @@ export default function BeatEditForm({ beat }: { beat: Beat }) {
     key: beat.key,
     genre: beat.genre,
     tags: beat.tags.join(", "),
-    isGiveaway: beat.nonExclusivePrice === 0 && beat.exclusivePrice === 0,
+    isGiveaway: beat.nonExclusivePrice.toNumber() === 0 && beat.exclusivePrice.toNumber() === 0,
     nonExclusiveEnabled: beat.nonExclusiveEnabled,
     nonExclusivePrice: beat.nonExclusivePrice.toString(),
     nonExclusiveCap: beat.nonExclusiveCap?.toString() || "",

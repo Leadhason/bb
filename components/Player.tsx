@@ -16,7 +16,8 @@ import {
   ShoppingBag,
   AlertCircle,
   Repeat,
-  Repeat1
+  Repeat1,
+  X
 } from "lucide-react";
 
 export default function Player() {
@@ -37,7 +38,9 @@ export default function Player() {
     toggleRepeatMode,
     openCheckout,
     showToast,
-    clearAudioError
+    clearAudioError,
+    isPlayerOpen,
+    closePlayer,
   } = useStore();
 
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -151,6 +154,11 @@ export default function Player() {
 
   const isNonExclAvailable = activeBeat ? (activeBeat.nonExclusiveEnabled && (activeBeat.nonExclusiveCap === null || (activeBeat.nonExclusiveSold || 0) < activeBeat.nonExclusiveCap)) : false;
 
+  // Don't render player if it's closed
+  if (!isPlayerOpen) {
+    return null;
+  }
+
   return (
     <div className="fixed bottom-0 left-0 right-0 z-50">
       {/* Error Banner */}
@@ -175,7 +183,17 @@ export default function Player() {
       )}
 
       {/* Player Footer */}
-      <footer className="h-[68px] bg-[var(--player-bg)] border-t border-[var(--player-border)] transition-colors duration-150 shadow-[0_-4px_24px_rgba(0,0,0,0.15)]">
+      <footer className="relative h-[68px] bg-[var(--player-bg)] border-t border-[var(--player-border)] transition-colors duration-150 shadow-[0_-4px_24px_rgba(0,0,0,0.15)]">
+      {/* Close Button - Top Right */}
+      <button
+        onClick={closePlayer}
+        className="absolute top-3 right-4 z-10 p-1 text-text-secondary hover:text-text-primary hover:bg-bg-hover rounded-md transition-colors"
+        aria-label="Close player"
+        title="Close player"
+      >
+        <X className="w-5 h-5" />
+      </button>
+
       <div className="max-w-[1200px] h-full mx-auto px-6 flex items-center justify-between gap-4">
         
         {/* Left Side: Beat Artwork + Title Metadata */}

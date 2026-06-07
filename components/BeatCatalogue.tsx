@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useStore, Beat } from "../context/StoreContext";
 import { 
   Play, 
@@ -14,10 +14,16 @@ import {
   Disc,
   Music,
   SlidersHorizontal,
-  ChevronDown
+  ChevronDown,
+  Loader
 } from "lucide-react";
 
-export default function BeatCatalogue({ beats }: { beats: Beat[] }) {
+export default function BeatCatalogue({ beats: initialBeats }: { beats: Beat[] }) {
+  const [beats, setBeats] = useState<Beat[]>(initialBeats);
+  const [page, setPage] = useState(1);
+  const [loading, setLoading] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const sentinelRef = useRef<HTMLDivElement>(null);
   const {
     setAllBeats,
     view,
@@ -43,11 +49,55 @@ export default function BeatCatalogue({ beats }: { beats: Beat[] }) {
     pauseBeat,
     setDetailModalBeat,
     openCheckout,
-    showToast
+    showToast,
+    isProducer
   } = useStore();
 
+  // Fetch more beats when page changes
+  useEffect(() => {
+    if (page === 0) return; // Skip initial page (already loaded)
+    
+    const fetchMoreBeats = async () => {
+      setLoading(true);
+      try {
+        const res = await fetch(`/api/beats?page=${page}`);
+        const data = await res.json();
+        setBeats((prev) => [...prev, ...data.beats]);
+        setHasMore(data.hasMore);
+      } catch (error) {
+        console.error("Error fetching more beats:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchMoreBeats();
+  }, [page]);
+
+  // Intersection Observer for infinite scroll
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore && !loading) {
+          setPage((prev) => prev + 1);
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    if (sentinelRef.current) {
+      observer.observe(sentinelRef.current);
+    }
+
+    return () => {
+      if (sentinelRef.current) {
+        observer.unobserve(sentinelRef.current);
+      }
+    };
+  }, [hasMore, loading]);
+
   // Populate context with beats for skip navigation
-  React.useEffect(() => {
+  useEffect(() => {
     setAllBeats(beats);
   }, [beats, setAllBeats]);
 
@@ -415,6 +465,15 @@ export default function BeatCatalogue({ beats }: { beats: Beat[] }) {
                       >
                         Sold
                       </button>
+                    ) : isProducer ? (
+                      <button
+                        disabled
+                        className="btn-secondary h-8 px-3 text-[11px] uppercase font-syne font-medium flex items-center justify-center gap-1 flex-1 text-text-disabled bg-bg-elevated border border-border-subtle cursor-not-allowed"
+                        title="Store owners cannot purchase"
+                      >
+                        <ShoppingBag className="w-3 h-3" />
+                        N/A
+                      </button>
                     ) : (
                       <button
                         onClick={() => openCheckout(beat, "non-exclusive")}
@@ -523,6 +582,15 @@ export default function BeatCatalogue({ beats }: { beats: Beat[] }) {
                         >
                           Sold Out
                         </button>
+                      ) : isProducer ? (
+                        <button
+                          disabled
+                          className="btn-secondary h-9 flex-1 flex items-center justify-center gap-1.5 text-[11px] uppercase font-syne font-medium text-text-disabled bg-bg-elevated border border-border-subtle cursor-not-allowed"
+                          title="Store owners cannot purchase"
+                        >
+                          <ShoppingBag className="w-3.5 h-3.5" />
+                          N/A
+                        </button>
                       ) : (
                         <button
                           onClick={() => openCheckout(beat, "non-exclusive")}
@@ -541,6 +609,15 @@ export default function BeatCatalogue({ beats }: { beats: Beat[] }) {
           })}
         </div>
       )}
+
+      {/* Loading Indicator & Sentinel */}
+      {loading && (
+        <div className="flex justify-center items-center py-8">
+          <Loader className="w-6 h-6 text-text-secondary animate-spin" />
+        </div>
+      )}
+      
+      <div ref={sentinelRef} className="h-4" aria-hidden="true" />
 
     </div>
   );

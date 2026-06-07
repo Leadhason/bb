@@ -90,7 +90,7 @@ export default async function BeatsPage() {
                       <div className="flex gap-2 flex-wrap">
                         {beat.nonExclusiveEnabled && (
                           <span className="px-2 py-1 rounded text-xs font-mono bg-badge-neutral-bg text-badge-neutral-text">
-                            NE ${beat.nonExclusivePrice}
+                            NE ${beat.nonExclusivePrice.toString()}
                           </span>
                         )}
                         {beat.exclusiveEnabled && (
@@ -101,7 +101,7 @@ export default async function BeatsPage() {
                                 : "bg-badge-neutral-bg text-badge-neutral-text"
                             }`}
                           >
-                            {beat.exclusiveSold ? "EXC SOLD" : `EXC $${beat.exclusivePrice}`}
+                            {beat.exclusiveSold ? "EXC SOLD" : `EXC $${beat.exclusivePrice.toString()}`}
                           </span>
                         )}
                       </div>

@@ -1,7 +1,8 @@
 import React from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { getOrderById } from "../actions";
-import { ChevronLeft, Package, AlertCircle, Clock, Download, Disc } from "lucide-react";
+import { ChevronLeft, Package, AlertCircle, Clock, Download } from "lucide-react";
 import { notFound } from "next/navigation";
 import { Breadcrumb } from "@/components/Breadcrumb";
 
@@ -27,9 +28,11 @@ export default async function OrderDetailPage({
     });
   };
 
-  const isLinkExpired = new Date(order.linkExpiresAt) < new Date();
+  const now = new Date();
+  const expiryTime = new Date(order.linkExpiresAt);
+  const isLinkExpired = expiryTime < now;
   const daysUntilExpiry = Math.ceil(
-    (new Date(order.linkExpiresAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24)
+    (expiryTime.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
   );
 
   return (
@@ -37,7 +40,7 @@ export default async function OrderDetailPage({
       <Breadcrumb items={[
         { label: "Admin", href: "/admin" },
         { label: "Orders", href: "/admin/orders" },
-        { label: order.orderReference },
+        { label: order.reference },
       ]} />
       {/* Header with Back Button */}
       <div>
@@ -130,9 +133,11 @@ export default async function OrderDetailPage({
               Beat Purchased
             </h2>
             <div className="flex gap-4">
-              <img
+              <Image
                 src={order.beat.coverUrl}
                 alt={order.beat.title}
+                width={80}
+                height={80}
                 className="w-20 h-20 rounded-lg object-cover"
               />
               <div className="flex-1">

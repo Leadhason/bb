@@ -1,6 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback, useId } from "react";
+import { useUser } from "@clerk/nextjs";
 
 export interface Beat {
   id: string;
@@ -87,6 +88,7 @@ interface StoreContextType {
   isAudioLoading: boolean;
   audioError: string | null;
   repeatMode: "off" | "one" | "all";
+  isPlayerOpen: boolean;
   playBeat: (beat: Beat) => void;
   pauseBeat: () => void;
   togglePlayPause: () => void;
@@ -96,6 +98,11 @@ interface StoreContextType {
   skipPrevious: () => void;
   toggleRepeatMode: () => void;
   clearAudioError: () => void;
+  closePlayer: () => void;
+  openPlayer: () => void;
+
+  // User role detection
+  isProducer: boolean;
 
   // Phase 3: Web Audio visualizer
   audioAnalyzer: AnalyserNode | null;
@@ -123,6 +130,28 @@ interface StoreContextType {
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
 
 export function StoreProvider({ children, initialBeats = [] }: { children: React.ReactNode; initialBeats?: Beat[] }) {
+  // User role detection
+  const { user } = useUser();
+  const [isProducer, setIsProducer] = useState(false);
+
+  // Detect if current user is the producer
+  useEffect(() => {
+    if (!user) {
+      setIsProducer(false);
+      return;
+    }
+
+    const producerClerkId =
+      process.env.NEXT_PUBLIC_PRODUCER_CLERK_ID || 
+      process.env.PRODUCER_CLERK_ID;
+
+    if (producerClerkId && user.id === producerClerkId) {
+      setIsProducer(true);
+    } else {
+      setIsProducer(false);
+    }
+  }, [user]);
+
   // Beats state
   const [allBeats, setAllBeats] = useState<Beat[]>(initialBeats);
 
@@ -156,6 +185,7 @@ export function StoreProvider({ children, initialBeats = [] }: { children: React
   const [isAudioLoading, setIsAudioLoading] = useState(false);
   const [audioError, setAudioError] = useState<string | null>(null);
   const [repeatMode, setRepeatMode] = useState<"off" | "one" | "all">("off");
+  const [isPlayerOpen, setIsPlayerOpen] = useState(false);
   const [volume, setVolume] = useState<number>(() => {
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem("beat-store-volume");
@@ -269,13 +299,13 @@ export function StoreProvider({ children, initialBeats = [] }: { children: React
         const analyser = audioContext.createAnalyser();
         analyser.fftSize = 256; // 128 frequency bands
         
-        if (audioContext.createMediaElementAudioSource) {
-          const source = audioContext.createMediaElementAudioSource(audio);
+        if (audioContext.createMediaElementSource) {
+          const source = audioContext.createMediaElementSource(audio);
           source.connect(analyser);
           analyser.connect(audioContext.destination);
         }
 
-        setAudioAnalyzer(analyser);
+        Promise.resolve().then(() => setAudioAnalyzer(analyser));
       } catch (error) {
         console.warn("Web Audio API unavailable:", error);
       }
@@ -419,7 +449,20 @@ export function StoreProvider({ children, initialBeats = [] }: { children: React
       setActiveBeat(beat);
       setIsPlaying(true);
     }
+    setIsPlayerOpen(true);
   }, [activeBeat?.id]);
+
+  const closePlayer = useCallback(() => {
+    setIsPlayerOpen(false);
+    setIsPlaying(false);
+    if (audioRef.current) {
+      audioRef.current.pause();
+    }
+  }, []);
+
+  const openPlayer = useCallback(() => {
+    setIsPlayerOpen(true);
+  }, []);
 
   const pauseBeat = useCallback(() => {
     setIsPlaying(false);
@@ -731,6 +774,7 @@ export function StoreProvider({ children, initialBeats = [] }: { children: React
         isAudioLoading,
         audioError,
         repeatMode,
+        isPlayerOpen,
         playBeat,
         pauseBeat,
         togglePlayPause,
@@ -740,6 +784,10 @@ export function StoreProvider({ children, initialBeats = [] }: { children: React
         skipPrevious,
         toggleRepeatMode,
         clearAudioError,
+        closePlayer,
+        openPlayer,
+
+        isProducer,
 
         audioAnalyzer,
 

@@ -37,9 +37,6 @@ export default function LoginPage() {
                 formResendCodeLink: "text-accent hover:text-accent-hover",
               },
             }}
-            afterSignInUrl="/admin"
-            fallbackRedirectUrl="/admin"
-            signUpUrl="/signup"
           />
         </div>
       </div>

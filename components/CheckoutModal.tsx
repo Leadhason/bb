@@ -13,7 +13,8 @@ export default function CheckoutModal() {
     applyDiscount,
     updateCheckoutDetails,
     completeCheckout,
-    showToast
+    showToast,
+    isProducer
   } = useStore();
 
   const { isSignedIn, user } = useUser();
@@ -21,6 +22,31 @@ export default function CheckoutModal() {
   const [promoCode, setPromoCode] = useState("");
   const [password, setPassword] = useState("");
   const [paymentProcessing, setPaymentProcessing] = useState(false);
+
+  // Prevent producers from purchasing
+  if (isProducer && checkout.isOpen) {
+    return (
+      <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4 animate-fadeIn">
+        <div className="bg-bg-surface border border-border-default rounded-xl max-w-md w-full p-8">
+          <div className="flex items-center justify-center w-10 h-10 rounded-full bg-danger/10 mx-auto mb-4">
+            <X className="w-5 h-5 text-danger" />
+          </div>
+          <h2 className="font-syne font-bold text-lg text-text-primary text-center mb-2">
+            Store Owners Cannot Purchase
+          </h2>
+          <p className="text-sm text-text-secondary text-center mb-6">
+            As the store owner, you cannot purchase beats. Your role is to manage the store and serve customers.
+          </p>
+          <button
+            onClick={closeCheckout}
+            className="btn-primary w-full uppercase text-sm font-syne font-medium h-10"
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   // If checkout closed, return null
   if (!checkout.isOpen || !checkout.beat) return null;
@@ -32,7 +58,7 @@ export default function CheckoutModal() {
   const discountAmount = checkout.discountApplied ? (basePrice * checkout.discountPercentage) / 100 : 0;
   
   // Bulk discounts simulation: automatically apply 10% if purchasing exclusive or buying more than one (or mock it here)
-  const isBulkDiscount = checkout.licenseType === "exclusive" && beat.nonExclusiveSold > 5;
+  const isBulkDiscount = checkout.licenseType === "exclusive" && (beat.nonExclusiveSold ?? 0) > 5;
   const bulkDiscountAmount = isBulkDiscount ? basePrice * 0.05 : 0; // 5% bulk modifier
   
   const finalPrice = Math.max(0, basePrice - discountAmount - bulkDiscountAmount);

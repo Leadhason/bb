@@ -436,7 +436,7 @@ export default function BeatDetailModal() {
                     <div className="font-syne font-bold text-[20px] text-text-primary">
                       ${detailModalBeat.exclusivePrice.toFixed(2)}
                     </div>
-                    {detailModalBeat.nonExclusiveSold > 0 && (
+                    {(detailModalBeat.nonExclusiveSold ?? 0) > 0 && (
                       <span className="font-mono text-[9px] text-success-text block mb-2 mt-0.5">
                         {detailModalBeat.nonExclusiveSold} non-exclusive sold already
                       </span>

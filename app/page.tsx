@@ -11,6 +11,7 @@ export default async function Home() {
   const beats = await prisma.beat.findMany({
     where: { published: true },
     orderBy: { createdAt: "desc" },
+    take: 12, // Only fetch first batch for initial load
   });
 
   // Data needs to be serialized for Client Components

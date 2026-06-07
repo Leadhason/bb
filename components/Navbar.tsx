@@ -8,7 +8,7 @@ import { useUser, SignOutButton } from "@clerk/nextjs";
 import { Sun, Moon, Menu, X, Music, Disc } from "lucide-react";
 
 export default function Navbar() {
-  const { theme, toggleTheme } = useStore();
+  const { theme, toggleTheme, isProducer } = useStore();
   const { isSignedIn, user } = useUser();
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -70,14 +70,25 @@ export default function Navbar() {
           <div className="hidden sm:flex items-center gap-2">
             {isSignedIn ? (
               <>
-                <Link
-                  href="/dashboard"
-                  className={`btn-secondary text-[12px] py-1.5 px-3 border border-border-strong rounded-md hover:border-border-focus transition-all ${
-                    pathname === "/dashboard" ? "text-text-primary border-text-primary" : ""
-                  }`}
-                >
-                  Dashboard
-                </Link>
+                {isProducer ? (
+                  <Link
+                    href="/admin"
+                    className={`btn-secondary text-[12px] py-1.5 px-3 border border-border-strong rounded-md hover:border-border-focus transition-all ${
+                      pathname.startsWith("/admin") ? "text-text-primary border-text-primary" : ""
+                    }`}
+                  >
+                    Admin Dashboard
+                  </Link>
+                ) : (
+                  <Link
+                    href="/dashboard"
+                    className={`btn-secondary text-[12px] py-1.5 px-3 border border-border-strong rounded-md hover:border-border-focus transition-all ${
+                      pathname === "/dashboard" ? "text-text-primary border-text-primary" : ""
+                    }`}
+                  >
+                    Dashboard
+                  </Link>
+                )}
                 <SignOutButton>
                   <button className="btn-ghost text-[12px] py-1.5 px-3 text-text-muted hover:text-text-primary">
                     Log out
@@ -137,13 +148,23 @@ export default function Navbar() {
                 <div className="text-[12px] text-text-muted px-1">
                   Logged in as <span className="text-text-secondary font-medium">{user?.primaryEmailAddress?.emailAddress}</span>
                 </div>
-                <Link
-                  href="/dashboard"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="btn-secondary text-center py-2 text-[13px] w-full"
-                >
-                  My Dashboard
-                </Link>
+                {isProducer ? (
+                  <Link
+                    href="/admin"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="btn-secondary text-center py-2 text-[13px] w-full"
+                  >
+                    Admin Dashboard
+                  </Link>
+                ) : (
+                  <Link
+                    href="/dashboard"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="btn-secondary text-center py-2 text-[13px] w-full"
+                  >
+                    My Dashboard
+                  </Link>
+                )}
                 <SignOutButton>
                   <button
                     onClick={() => setMobileMenuOpen(false)}

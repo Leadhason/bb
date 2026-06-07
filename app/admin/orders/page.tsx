@@ -1,5 +1,6 @@
 import React from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { getOrders } from "./actions";
 import prisma from "@/lib/prisma";
 import { Package, Eye, ChevronRight, AlertCircle } from "lucide-react";
@@ -140,9 +141,11 @@ export default async function OrdersPage({
                   {/* Beat */}
                   <td className="py-3 px-4">
                     <div className="flex items-center gap-2">
-                      <img
+                      <Image
                         src={order.beat.coverUrl}
                         alt={order.beat.title}
+                        width={32}
+                        height={32}
                         className="w-8 h-8 rounded object-cover"
                       />
                       <p className="font-syne text-sm text-text-primary">{order.beat.title}</p>

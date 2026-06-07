@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { Eye, EyeOff, Loader } from "lucide-react";
+import { Eye, EyeOff, Loader2 } from "lucide-react";
 import { toggleBeatPublish } from "./actions";
 import { useStore } from "../../../context/StoreContext";
 
@@ -39,7 +39,7 @@ export function PublishToggle({ beatId, isPublished }: { beatId: string; isPubli
       title={isPublished ? "Unpublish" : "Publish"}
     >
       {isLoading ? (
-        <Loader className="w-4 h-4 animate-spin" />
+        <Loader2 className="w-4 h-4 animate-spin" />
       ) : isPublished ? (
         <Eye className="w-4 h-4" />
       ) : (
