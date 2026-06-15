@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useStore, LicenseType } from "../context/StoreContext";
-import { X, Play, Pause, Download, ShoppingBag, Music, Disc, AlertCircle, Repeat, Repeat1 } from "lucide-react";
+import { X, Play, Pause, Download, ShoppingBag, Music, Disc, AlertCircle, Repeat, Repeat1, ShoppingCart } from "lucide-react";
 
 export default function BeatDetailModal() {
   const {
@@ -22,7 +22,9 @@ export default function BeatDetailModal() {
     showToast,
     toggleRepeatMode,
     clearAudioError,
-    audioAnalyzer
+    audioAnalyzer,
+    addToCart,
+    setIsCartOpen
   } = useStore();
 
   const [selectedLicense, setSelectedLicense] = useState<LicenseType>("non-exclusive");
@@ -30,6 +32,20 @@ export default function BeatDetailModal() {
   const [hoverTime, setHoverTime] = useState<number | null>(null);
   const [hoverPercent, setHoverPercent] = useState<number>(0);
   const waveContainerRef = useRef<HTMLDivElement>(null);
+
+  // Sync selected license availability when detailModalBeat changes
+  useEffect(() => {
+    if (!detailModalBeat) return;
+    
+    const nonExclAvailable = detailModalBeat.nonExclusiveEnabled && 
+      (detailModalBeat.nonExclusiveCap === null || (detailModalBeat.nonExclusiveSold || 0) < detailModalBeat.nonExclusiveCap);
+      
+    if (!nonExclAvailable && detailModalBeat.exclusiveEnabled && !detailModalBeat.exclusiveSold) {
+      setSelectedLicense("exclusive");
+    } else {
+      setSelectedLicense("non-exclusive");
+    }
+  }, [detailModalBeat]);
 
   // Waveform interaction handlers - MUST be defined before any conditional returns
   const handleWaveMove = useCallback((e: React.MouseEvent<HTMLDivElement> | MouseEvent) => {
@@ -372,7 +388,8 @@ export default function BeatDetailModal() {
             
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {/* Non-Exclusive Option */}
-              {detailModalBeat.nonExclusiveEnabled && (
+              {detailModalBeat.nonExclusiveEnabled && 
+               (detailModalBeat.nonExclusiveCap === null || (detailModalBeat.nonExclusiveSold || 0) < detailModalBeat.nonExclusiveCap) && (
                 <div 
                   onClick={() => setSelectedLicense("non-exclusive")}
                   className={`p-4 rounded-lg border cursor-pointer flex flex-col justify-between transition-all ${
@@ -483,15 +500,29 @@ export default function BeatDetailModal() {
               EXCLUSIVE SOLD OUT
             </button>
           ) : (
-            <button
-              onClick={handleCheckoutSubmit}
-              className="btn-primary h-10 w-full sm:flex-1 flex items-center justify-center gap-2 text-[12px] uppercase font-medium"
-              aria-label={`Proceed to checkout with ${selectedLicense === "non-exclusive" ? "non-exclusive" : "exclusive"} license`}
-              title="Proceed to checkout"
-            >
-              <ShoppingBag className="w-4 h-4" />
-              CHECKOUT WITH {selectedLicense === "non-exclusive" ? "NON-EXCLUSIVE" : "EXCLUSIVE"}
-            </button>
+            <div className="flex flex-col sm:flex-row gap-2 w-full sm:flex-1">
+              <button
+                onClick={() => {
+                  addToCart(detailModalBeat, selectedLicense);
+                  setDetailModalBeat(null);
+                  setIsCartOpen(true);
+                }}
+                className="btn-secondary h-10 flex-1 flex items-center justify-center gap-2 text-[12px] uppercase font-medium border border-border-strong hover:border-border-focus"
+                aria-label={`Add to cart with ${selectedLicense === "non-exclusive" ? "non-exclusive" : "exclusive"} license`}
+              >
+                <ShoppingCart className="w-4 h-4" />
+                ADD TO CART
+              </button>
+              <button
+                onClick={handleCheckoutSubmit}
+                className="btn-primary h-10 flex-1 flex items-center justify-center gap-2 text-[12px] uppercase font-medium"
+                aria-label={`Proceed to checkout with ${selectedLicense === "non-exclusive" ? "non-exclusive" : "exclusive"} license`}
+                title="Proceed to checkout"
+              >
+                <ShoppingBag className="w-4 h-4" />
+                BUY NOW
+              </button>
+            </div>
           )}
         </div>
 

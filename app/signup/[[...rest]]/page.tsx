@@ -1,10 +1,10 @@
 "use client";
 
 import React from "react";
-import { SignIn } from "@clerk/nextjs";
+import { SignUp } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 
-export default function LoginPage() {
+export default function SignUpPage() {
   const router = useRouter();
 
   return (
@@ -12,15 +12,15 @@ export default function LoginPage() {
       <div className="w-full max-w-md">
         <div className="mb-8 text-center">
           <h1 className="font-syne font-bold text-3xl text-text-primary tracking-widest uppercase">
-            Login to Your Account
+            Create Your Account
           </h1>
           <p className="font-syne text-sm text-text-muted mt-2">
-            Access your dashboard to manage purchases and profile
+            Join the beat store and start purchasing licenses
           </p>
         </div>
 
         <div className="bg-bg-surface border border-border-default rounded-xl p-8">
-          <SignIn
+          <SignUp
             appearance={{
               elements: {
                 rootBox: "w-full",

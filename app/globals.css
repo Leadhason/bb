@@ -313,13 +313,16 @@ body {
   z-index: 100;
   backdrop-filter: blur(2px);
   animation: fadeIn 0.15s ease;
+  overflow-y: auto;
+  padding: 40px 16px;
 }
 .modal-panel {
   background: var(--bg-surface);
   border: 1px solid var(--border-default);
   border-radius: var(--radius-xl);
   padding: 28px;
-  width: 100%; max-width: 480px;
+  width: 100%;
+  margin: auto;
   animation: slideUp 0.2s ease;
 }
 @keyframes fadeIn  { from { opacity: 0; } to { opacity: 1; } }
@@ -356,3 +359,32 @@ body {
   animation: shimmer 1.4s infinite;
 }
 @keyframes shimmer { from { transform: translateX(-100%); } to { transform: translateX(100%); } }
+
+/* Cart Drawer Styles */
+.drawer-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.72);
+  z-index: 100;
+  backdrop-filter: blur(2px);
+  animation: fadeIn 0.15s ease;
+}
+.drawer-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--bg-surface);
+  border-left: 1px solid var(--border-default);
+  width: 100%;
+  max-width: 440px;
+  z-index: 101;
+  display: flex;
+  flex-direction: column;
+  animation: slideLeft 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: -10px 0 30px rgba(0, 0, 0, 0.25);
+}
+@keyframes slideLeft {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}

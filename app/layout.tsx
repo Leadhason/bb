@@ -4,8 +4,7 @@ import { ClerkProvider } from "@clerk/nextjs";
 import Script from "next/script";
 import "./globals.css";
 import { StoreProvider } from "../context/StoreContext";
-import Navbar from "../components/Navbar";
-import Player from "../components/Player";
+import AppLayoutWrapper from "../components/AppLayoutWrapper";
 import ToastManager from "../components/ToastManager";
 
 const syne = Syne({
@@ -55,11 +54,9 @@ export default function RootLayout({
         </head>
         <body className="min-h-full flex flex-col bg-bg-base text-text-primary">
           <StoreProvider>
-            <Navbar />
-            <main className="flex-1 w-full max-w-[1200px] mx-auto px-6 pb-[92px]">
+            <AppLayoutWrapper>
               {children}
-            </main>
-            <Player />
+            </AppLayoutWrapper>
             <ToastManager />
           </StoreProvider>
         </body>

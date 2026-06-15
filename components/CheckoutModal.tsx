@@ -1,9 +1,9 @@
 "use client";
 
 import React, { useState } from "react";
-import { useStore, CheckoutState } from "../context/StoreContext";
+import { useStore, CheckoutState, CartItem } from "../context/StoreContext";
 import { useUser } from "@clerk/nextjs";
-import { X, Check, CreditCard, User, Tag, ShoppingCart, Loader2, ArrowRight, Disc } from "lucide-react";
+import { X, Check, CreditCard, User, Tag, ShoppingCart, Loader2, ArrowRight, Disc, Music } from "lucide-react";
 
 export default function CheckoutModal() {
   const {
@@ -14,7 +14,8 @@ export default function CheckoutModal() {
     updateCheckoutDetails,
     completeCheckout,
     showToast,
-    isProducer
+    isProducer,
+    cartItems,
   } = useStore();
 
   const { isSignedIn, user } = useUser();
@@ -49,18 +50,43 @@ export default function CheckoutModal() {
   }
 
   // If checkout closed, return null
-  if (!checkout.isOpen || !checkout.beat) return null;
+  if (!checkout.isOpen || (!checkout.beat && !checkout.isCart)) return null;
 
-  const beat = checkout.beat;
-  const basePrice = checkout.licenseType === "non-exclusive" ? beat.nonExclusivePrice : beat.exclusivePrice;
-  
+  const isCart = checkout.isCart;
+  const items = isCart
+    ? cartItems
+    : checkout.beat
+    ? [{ beat: checkout.beat, licenseType: checkout.licenseType }]
+    : [];
+
+  const basePrice = items.reduce((sum, item) => {
+    const price =
+      item.licenseType === "non-exclusive"
+        ? item.beat.nonExclusivePrice
+        : item.beat.exclusivePrice;
+    return sum + price;
+  }, 0);
+
   // Calculate discount and total
   const discountAmount = checkout.discountApplied ? (basePrice * checkout.discountPercentage) / 100 : 0;
-  
-  // Bulk discounts simulation: automatically apply 10% if purchasing exclusive or buying more than one (or mock it here)
-  const isBulkDiscount = checkout.licenseType === "exclusive" && (beat.nonExclusiveSold ?? 0) > 5;
-  const bulkDiscountAmount = isBulkDiscount ? basePrice * 0.05 : 0; // 5% bulk modifier
-  
+
+  // Bulk discounts simulation:
+  // 10% for 2 items in cart, 20% for 3+ items in cart
+  // 5% for single exclusive beat if nonExclusiveSold > 5
+  let bulkDiscountPercentage = 0;
+  if (isCart) {
+    if (items.length === 2) {
+      bulkDiscountPercentage = 10;
+    } else if (items.length >= 3) {
+      bulkDiscountPercentage = 20;
+    }
+  } else if (checkout.licenseType === "exclusive" && checkout.beat && (checkout.beat.nonExclusiveSold ?? 0) > 5) {
+    bulkDiscountPercentage = 5;
+  }
+
+  const isBulkDiscount = bulkDiscountPercentage > 0;
+  const bulkDiscountAmount = (basePrice * bulkDiscountPercentage) / 100;
+
   const finalPrice = Math.max(0, basePrice - discountAmount - bulkDiscountAmount);
 
   // Handle promo code submit
@@ -137,25 +163,49 @@ export default function CheckoutModal() {
         {/* STEP 1: LICENSE CONFIRMATION */}
         {checkout.step === 1 && (
           <div className="animate-fadeIn">
-            {/* Beat Review summary card */}
-            <div className="flex gap-4 p-4 bg-bg-elevated border border-border-default rounded-lg mb-5">
-              <div 
-                className={`w-14 h-14 rounded-md bg-gradient-to-br ${beat.coverColor} border border-border-default flex-shrink-0 flex items-center justify-center`}
-              >
-                <Disc className="w-6 h-6 text-text-secondary/65" />
+            {/* Beat Review summary card(s) */}
+            {isCart ? (
+              <div className="flex flex-col gap-3 max-h-[220px] overflow-y-auto mb-5 pr-1 border border-border-subtle rounded-lg p-3 bg-bg-elevated">
+                {items.map((item, idx) => {
+                  const itemPrice = item.licenseType === "non-exclusive" ? item.beat.nonExclusivePrice : item.beat.exclusivePrice;
+                  return (
+                    <div key={`${item.beat.id}-${idx}`} className="flex gap-3 py-2 border-b border-border-subtle/50 last:border-b-0 items-center justify-between">
+                      <div className="flex gap-3 items-center min-w-0">
+                        <div className={`w-9 h-9 rounded bg-gradient-to-br ${item.beat.coverColor || "from-neutral-800 to-neutral-900"} flex-shrink-0 flex items-center justify-center border border-border-subtle`}>
+                          <Music className="w-3.5 h-3.5 text-text-secondary/70" />
+                        </div>
+                        <div className="min-w-0">
+                          <h4 className="font-syne font-semibold text-[12px] text-text-primary truncate">{item.beat.title}</h4>
+                          <span className="text-[10px] text-text-muted capitalize">{item.licenseType} License</span>
+                        </div>
+                      </div>
+                      <span className="font-mono text-[11px] font-bold text-text-primary flex-shrink-0">${itemPrice.toFixed(2)}</span>
+                    </div>
+                  );
+                })}
               </div>
-              <div className="flex-1 min-w-0">
-                <h3 className="font-syne font-semibold text-[14px] text-text-primary truncate">
-                  {beat.title}
-                </h3>
-                <p className="font-mono text-[10px] text-text-muted uppercase tracking-wider mt-0.5">
-                  {beat.genre} · {beat.bpm} BPM
-                </p>
-                <span className="inline-block mt-2 font-syne text-[11px] font-medium bg-bg-overlay border border-border-subtle text-text-secondary px-2 py-0.5 rounded-[var(--radius-sm)] capitalize">
-                  {checkout.licenseType} License
-                </span>
-              </div>
-            </div>
+            ) : (
+              checkout.beat && (
+                <div className="flex gap-4 p-4 bg-bg-elevated border border-border-default rounded-lg mb-5">
+                  <div 
+                    className={`w-14 h-14 rounded-md bg-gradient-to-br ${checkout.beat.coverColor || "from-neutral-800 to-neutral-900"} border border-border-default flex-shrink-0 flex items-center justify-center`}
+                  >
+                    <Disc className="w-6 h-6 text-text-secondary/65" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-syne font-semibold text-[14px] text-text-primary truncate">
+                      {checkout.beat.title}
+                    </h3>
+                    <p className="font-mono text-[10px] text-text-muted uppercase tracking-wider mt-0.5">
+                      {checkout.beat.genre} · {checkout.beat.bpm} BPM
+                    </p>
+                    <span className="inline-block mt-2 font-syne text-[11px] font-medium bg-bg-overlay border border-border-subtle text-text-secondary px-2 py-0.5 rounded-[var(--radius-sm)] capitalize">
+                      {checkout.licenseType} License
+                    </span>
+                  </div>
+                </div>
+              )
+            )}
 
             {/* Discount Code Form */}
             <form onSubmit={handlePromoApply} className="mb-6">
@@ -198,7 +248,7 @@ export default function CheckoutModal() {
             {/* Pricing Summary */}
             <div className="border-t border-b border-border-subtle py-4 mb-6 flex flex-col gap-2">
               <div className="flex justify-between items-center text-[13px] text-text-secondary">
-                <span>Base Price ({checkout.licenseType})</span>
+                <span>Subtotal</span>
                 <span className="font-mono">${basePrice.toFixed(2)}</span>
               </div>
 
@@ -211,7 +261,7 @@ export default function CheckoutModal() {
 
               {isBulkDiscount && (
                 <div className="flex justify-between items-center text-[13px] text-success-text font-medium">
-                  <span>Bulk Discount Applied (5%)</span>
+                  <span>Bulk Discount Applied ({bulkDiscountPercentage}%)</span>
                   <span className="font-mono">-${bulkDiscountAmount.toFixed(2)}</span>
                 </div>
               )}

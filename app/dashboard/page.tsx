@@ -8,7 +8,6 @@ import {
   Disc, 
   User, 
   Settings, 
-  ShieldCheck, 
   Music, 
   Loader2, 
   AlertCircle, 
@@ -140,10 +139,6 @@ export default function Dashboard() {
           <p className="font-syne text-[13px] text-text-secondary mt-1">
             {mockPurchased.length} Beats Purchased safely
           </p>
-        </div>
-        <div className="font-mono text-[11px] bg-bg-surface border border-border-default text-success-text px-3 py-1 rounded-md flex items-center gap-1.5">
-          <ShieldCheck className="w-3.5 h-3.5" />
-          ACCOUNT AUTHENTICATED
         </div>
       </div>
 

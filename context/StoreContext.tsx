@@ -29,10 +29,16 @@ type Theme = "dark" | "light";
 
 export type LicenseType = "non-exclusive" | "exclusive";
 
+export interface CartItem {
+  beat: Beat;
+  licenseType: LicenseType;
+}
+
 export interface CheckoutState {
   isOpen: boolean;
   beat: Beat | null;
   licenseType: LicenseType;
+  isCart?: boolean;
   step: 1 | 2 | 3 | 4; // 1: Confirmation, 2: Customer Details, 3: Payment, 4: Success
   discountCode: string;
   discountApplied: boolean;
@@ -113,13 +119,22 @@ interface StoreContextType {
 
   // Checkout states
   checkout: CheckoutState;
-  openCheckout: (beat: Beat, licenseType?: LicenseType) => void;
+  openCheckout: (beat: Beat | null, licenseType?: LicenseType, isCart?: boolean) => void;
   closeCheckout: () => void;
   setCheckoutStep: (step: 1 | 2 | 3 | 4) => void;
   applyDiscount: (code: string) => void;
   updateCheckoutDetails: (fields: Partial<CheckoutState>) => void;
   resetCheckout: () => void;
   completeCheckout: () => void;
+
+  // Cart state
+  cartItems: CartItem[];
+  addToCart: (beat: Beat, licenseType: LicenseType) => void;
+  removeFromCart: (beatId: string, licenseType: LicenseType) => void;
+  updateCartItemLicense: (beatId: string, oldLicense: LicenseType, newLicense: LicenseType) => void;
+  clearCart: () => void;
+  isCartOpen: boolean;
+  setIsCartOpen: (open: boolean) => void;
 
   // Toast notifications
   toasts: Toast[];
@@ -208,11 +223,63 @@ export function StoreProvider({ children, initialBeats = [] }: { children: React
   // Modal states
   const [detailModalBeat, setDetailModalBeat] = useState<Beat | null>(null);
 
+  // Cart state
+  const [cartItems, setCartItems] = useState<CartItem[]>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("beat-store-cart");
+      return saved ? JSON.parse(saved) : [];
+    }
+    return [];
+  });
+  const [isCartOpen, setIsCartOpen] = useState(false);
+
+  // Sync cart to localStorage
+  useEffect(() => {
+    localStorage.setItem("beat-store-cart", JSON.stringify(cartItems));
+  }, [cartItems]);
+
+  const addToCart = (beat: Beat, licenseType: LicenseType) => {
+    const exists = cartItems.some(
+      (item) => item.beat.id === beat.id && item.licenseType === licenseType
+    );
+    if (exists) {
+      showToast(`${beat.title} (${licenseType}) is already in your cart.`, "neutral");
+      return;
+    }
+
+    setCartItems((prev) => [...prev, { beat, licenseType }]);
+    showToast(`Added ${beat.title} (${licenseType}) to cart`, "success");
+  };
+
+  const removeFromCart = (beatId: string, licenseType: LicenseType) => {
+    setCartItems((prev) =>
+      prev.filter((item) => !(item.beat.id === beatId && item.licenseType === licenseType))
+    );
+    showToast("Removed beat from cart", "neutral");
+  };
+
+  const updateCartItemLicense = (beatId: string, oldLicense: LicenseType, newLicense: LicenseType) => {
+    setCartItems((prev) =>
+      prev.map((item) => {
+        if (item.beat.id === beatId && item.licenseType === oldLicense) {
+          return { ...item, licenseType: newLicense };
+        }
+        return item;
+      })
+    );
+    showToast("Updated license type", "success");
+  };
+
+  const clearCart = () => {
+    setCartItems([]);
+  };
+
   // Checkout state
   const [checkout, setCheckout] = useState<CheckoutState>({
     isOpen: false,
     beat: null,
     licenseType: "non-exclusive",
+    isCart: false,
     step: 1,
     discountCode: "",
     discountApplied: false,
@@ -596,11 +663,12 @@ export function StoreProvider({ children, initialBeats = [] }: { children: React
     selectedMoods.length;
 
   // Checkout trigger helpers
-  const openCheckout = (beat: Beat, licenseType: LicenseType = "non-exclusive") => {
+  const openCheckout = (beat: Beat | null, licenseType: LicenseType = "non-exclusive", isCart = false) => {
     setCheckout({
       isOpen: true,
       beat,
       licenseType,
+      isCart,
       step: 1,
       discountCode: "",
       discountApplied: false,
@@ -686,6 +754,9 @@ export function StoreProvider({ children, initialBeats = [] }: { children: React
       step: 4,
       orderRef: randomRef,
     }));
+    if (checkout.isCart) {
+      clearCart();
+    }
     showToast("Purchase complete! Email sent.", "success");
   };
 
@@ -802,6 +873,15 @@ export function StoreProvider({ children, initialBeats = [] }: { children: React
         updateCheckoutDetails,
         resetCheckout,
         completeCheckout,
+
+        // Cart state
+        cartItems,
+        addToCart,
+        removeFromCart,
+        updateCartItemLicense,
+        clearCart,
+        isCartOpen,
+        setIsCartOpen,
 
         toasts,
         showToast,

@@ -183,18 +183,19 @@ export default function Player() {
       )}
 
       {/* Player Footer */}
-      <footer className="relative h-[68px] bg-[var(--player-bg)] border-t border-[var(--player-border)] transition-colors duration-150 shadow-[0_-4px_24px_rgba(0,0,0,0.15)]">
+      <footer className="relative h-[88px] md:h-[68px] bg-[var(--player-bg)] border-t border-[var(--player-border)] transition-colors duration-150 shadow-[0_-4px_24px_rgba(0,0,0,0.15)]">
       {/* Close Button - Top Right */}
       <button
         onClick={closePlayer}
-        className="absolute top-3 right-4 z-10 p-1 text-text-secondary hover:text-text-primary hover:bg-bg-hover rounded-md transition-colors"
+        className="absolute top-1 right-2 md:top-3 md:right-4 z-10 p-0.5 md:p-1 text-text-secondary hover:text-text-primary hover:bg-bg-hover rounded-md transition-colors"
         aria-label="Close player"
         title="Close player"
       >
-        <X className="w-5 h-5" />
+        <X className="w-4 h-4 md:w-5 md:h-5" />
       </button>
 
-      <div className="max-w-[1200px] h-full mx-auto px-6 flex items-center justify-between gap-4">
+      {/* Desktop Player Layout (md and up) */}
+      <div className="hidden md:flex max-w-[1200px] h-full mx-auto px-6 items-center justify-between gap-4">
         
         {/* Left Side: Beat Artwork + Title Metadata */}
         <div className="w-[220px] flex items-center gap-3 flex-shrink-0">
@@ -333,15 +334,6 @@ export default function Player() {
                 {formatTime(duration)}
               </span>
             </div>
-
-            {/* Hover Time Preview (for drag state) */}
-            {hoverTime !== null && isDraggingScrubber && (
-              <div className="flex justify-center mt-1">
-                <div className="bg-bg-elevated border border-border-default rounded px-2 py-1 text-[11px] text-text-secondary font-mono">
-                  {formatTime(hoverTime)}
-                </div>
-              </div>
-            )}
           </div>
 
           {/* Volume Control */}
@@ -398,7 +390,7 @@ export default function Player() {
             className="btn-secondary h-9 px-3.5 flex items-center gap-1.5 text-[11px] disabled:opacity-40 disabled:cursor-not-allowed"
           >
             <Download className="w-3.5 h-3.5" />
-            <span className="hidden md:inline">FREE PREVIEW</span>
+            <span>FREE PREVIEW</span>
           </button>
 
           {/* Checkout Selector Group */}
@@ -435,7 +427,7 @@ export default function Player() {
             {/* License Dropdown Panel */}
             {dropdownOpen && activeBeat && (
               <div 
-                className="absolute bottom-[48px] right-0 w-[240px] bg-bg-surface border border-border-default rounded-lg p-2 shadow-2xl animate-slideUp z-50"
+                className="absolute bottom-[48px] right-0 w-[240px] bg-bg-surface border border-border-default rounded-lg p-2 shadow-2xl z-50"
               >
                 <div className="text-[10px] text-text-muted font-syne uppercase tracking-wider px-2 py-1.5 border-b border-border-subtle mb-1">
                   Select License
@@ -455,11 +447,6 @@ export default function Player() {
                         ${activeBeat.nonExclusivePrice.toFixed(2)}
                       </span>
                     </div>
-                    <span className="text-[10px] text-text-muted mt-0.5">
-                      {isNonExclAvailable 
-                        ? "Stream / upload capabilities, royalty caps"
-                        : "Sales cap reached for this license"}
-                    </span>
                   </button>
                 )}
 
@@ -476,14 +463,121 @@ export default function Player() {
                         ${activeBeat.exclusivePrice.toFixed(2)}
                       </span>
                     </div>
-                    <span className="text-[10px] text-text-muted mt-0.5">
-                      Solo ownership, 100% royalty retrieval
-                    </span>
-                    {activeBeat?.nonExclusiveSold && activeBeat.nonExclusiveSold > 0 && (
-                      <span className="font-mono text-[9px] text-success-text mt-0.5">
-                        {activeBeat.nonExclusiveSold} non-excl. already sold
-                      </span>
-                    )}
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Mobile Player Layout (under md) - Condensed */}
+      <div className="flex md:hidden flex-col h-full justify-between py-2 px-4 relative">
+        {/* Top Row: Title/Metadata, Controls, Buy Button */}
+        <div className="flex items-center justify-between gap-3 h-10 pr-6">
+          {/* Left: Metadata */}
+          <div className="min-w-0 flex-1">
+            {activeBeat ? (
+              <div className="overflow-hidden">
+                <h4 className="font-syne font-semibold text-[12px] text-text-primary truncate leading-tight">
+                  {activeBeat.title}
+                </h4>
+                <p className="font-mono text-[9px] text-text-muted mt-0.5 truncate uppercase tracking-wider">
+                  {activeBeat.genre} · {activeBeat.bpm} BPM
+                </p>
+              </div>
+            ) : (
+              <p className="font-syne text-[11px] text-text-disabled">No beat selected</p>
+            )}
+          </div>
+
+          {/* Center: Controls */}
+          <div className="flex items-center gap-1.5 flex-shrink-0">
+            <button
+              onClick={skipPrevious}
+              disabled={!activeBeat}
+              className="p-1 text-text-secondary disabled:opacity-30 cursor-pointer"
+              aria-label="Previous beat"
+            >
+              <SkipBack className="w-3.5 h-3.5" />
+            </button>
+
+            <button
+              onClick={togglePlayPause}
+              className={`w-7 h-7 rounded-full flex items-center justify-center cursor-pointer transition-all duration-100 ${
+                activeBeat 
+                  ? "bg-[var(--accent)] text-[var(--accent-fg)]" 
+                  : "bg-bg-elevated text-text-disabled cursor-not-allowed border border-border-subtle"
+              }`}
+              aria-label={isPlaying ? "Pause" : "Play"}
+            >
+              {isPlaying ? (
+                <Pause className="w-3.5 h-3.5 fill-current text-[var(--accent-fg)]" />
+              ) : (
+                <Play className="w-3.5 h-3.5 fill-current translate-x-[0.5px] text-[var(--accent-fg)]" />
+              )}
+            </button>
+
+            <button
+              onClick={skipNext}
+              disabled={!activeBeat}
+              className="p-1 text-text-secondary disabled:opacity-30 cursor-pointer"
+              aria-label="Next beat"
+            >
+              <SkipForward className="w-3.5 h-3.5" />
+            </button>
+          </div>
+
+          {/* Right: Checkout Button & Dropdown */}
+          <div ref={dropdownRef} className="relative flex items-center flex-shrink-0">
+            {activeBeat?.exclusiveSold ? (
+              <span className="text-[9px] font-syne uppercase text-text-disabled border border-border-subtle px-2 py-1 rounded">
+                Sold
+              </span>
+            ) : (
+              <>
+                <button
+                  onClick={() => handleCheckoutClick(primaryLicense?.type || "non-exclusive")}
+                  disabled={!activeBeat || !primaryLicense}
+                  className="btn-primary h-7 pl-2.5 pr-2 flex items-center gap-1 text-[9px] font-bold disabled:opacity-40 disabled:cursor-not-allowed rounded-r-none border-r border-accent-fg/10"
+                >
+                  <ShoppingBag className="w-3 h-3" />
+                  BUY — ${primaryLicense ? primaryLicense.price.toFixed(0) : "0"}
+                </button>
+                <button
+                  onClick={() => activeBeat && setDropdownOpen(!dropdownOpen)}
+                  disabled={!activeBeat || !primaryLicense}
+                  className="btn-primary h-7 px-1 flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed rounded-l-none"
+                  aria-label="Select License Type"
+                >
+                  <ChevronUp className={`w-3 h-3 transition-transform duration-200 ${dropdownOpen ? "rotate-180" : ""}`} />
+                </button>
+              </>
+            )}
+
+            {/* License Dropdown Panel */}
+            {dropdownOpen && activeBeat && (
+              <div 
+                className="absolute bottom-[32px] right-0 w-[180px] bg-bg-surface border border-border-default rounded-lg p-1 shadow-2xl z-50 animate-slideUp"
+              >
+                {activeBeat.nonExclusiveEnabled && (
+                  <button
+                    onClick={() => isNonExclAvailable && handleCheckoutClick("non-exclusive")}
+                    disabled={!isNonExclAvailable}
+                    className={`w-full text-left p-1.5 rounded-md flex justify-between items-center group ${isNonExclAvailable ? 'hover:bg-bg-hover cursor-pointer' : 'opacity-50 cursor-not-allowed'}`}
+                  >
+                    <span className="font-syne font-medium text-[10px] text-text-primary">Non-Exclusive</span>
+                    <span className="font-mono text-[10px] text-text-primary">${activeBeat.nonExclusivePrice.toFixed(0)}</span>
+                  </button>
+                )}
+
+                {activeBeat.exclusiveEnabled && (
+                  <button
+                    onClick={() => handleCheckoutClick("exclusive")}
+                    className="w-full text-left p-1.5 rounded-md hover:bg-bg-hover transition-colors flex justify-between items-center group mt-0.5 cursor-pointer"
+                  >
+                    <span className="font-syne font-medium text-[10px] text-text-primary">Exclusive</span>
+                    <span className="font-mono text-[10px] text-text-primary">${activeBeat.exclusivePrice.toFixed(0)}</span>
                   </button>
                 )}
               </div>
@@ -491,6 +585,36 @@ export default function Player() {
           </div>
         </div>
 
+        {/* Bottom Row: Full-width Scrubber Progress Bar */}
+        <div className="w-full flex items-center gap-2 px-1 pb-1">
+          <span className="font-mono text-[9px] text-text-muted w-6 text-right">
+            {formatTime(currentTime)}
+          </span>
+
+          <div 
+            ref={progressBarRef}
+            onMouseDown={handleScrubStart}
+            className={`h-[3px] flex-1 rounded-full bg-[var(--scrubber-track)] relative cursor-pointer ${isAudioLoading ? 'opacity-60' : ''}`}
+            role="slider"
+            aria-label="Seek to position"
+            aria-valuemin={0}
+            aria-valuemax={Math.round(duration) || 0}
+            aria-valuenow={Math.round(currentTime) || 0}
+          >
+            <div 
+              className="absolute left-0 top-0 h-full rounded-full bg-[var(--scrubber-fill)]" 
+              style={{ width: `${progressPercent}%` }}
+            />
+            <div 
+              className="absolute top-1/2 w-2 h-2 rounded-full bg-[var(--scrubber-thumb)] -translate-y-1/2 -translate-x-1/2"
+              style={{ left: `${progressPercent}%` }}
+            />
+          </div>
+
+          <span className="font-mono text-[9px] text-text-muted w-6">
+            {formatTime(duration)}
+          </span>
+        </div>
       </div>
       </footer>
     </div>

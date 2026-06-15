@@ -20,10 +20,12 @@ import {
 
 export default function BeatCatalogue({ beats: initialBeats }: { beats: Beat[] }) {
   const [beats, setBeats] = useState<Beat[]>(initialBeats);
-  const [page, setPage] = useState(1);
+  const [page, setPage] = useState(0);
   const [loading, setLoading] = useState(false);
-  const [hasMore, setHasMore] = useState(true);
+  const [hasMore, setHasMore] = useState(initialBeats.length >= 12);
+  const [isBottomSheetOpen, setIsBottomSheetOpen] = useState(false);
   const sentinelRef = useRef<HTMLDivElement>(null);
+
   const {
     setAllBeats,
     view,
@@ -42,7 +44,7 @@ export default function BeatCatalogue({ beats: initialBeats }: { beats: Beat[] }
     setSortBy,
     clearFilters,
     activeFilterCount,
-    
+
     activeBeat,
     isPlaying,
     playBeat,
@@ -50,8 +52,22 @@ export default function BeatCatalogue({ beats: initialBeats }: { beats: Beat[] }
     setDetailModalBeat,
     openCheckout,
     showToast,
-    isProducer
+    isProducer,
+    addToCart,
+    setIsCartOpen
   } = useStore();
+
+  // Force list view on mobile screen widths
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth < 768) {
+        setView("list");
+      }
+    };
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, [setView]);
 
   // Fetch more beats when page changes
   useEffect(() => {
@@ -76,22 +92,25 @@ export default function BeatCatalogue({ beats: initialBeats }: { beats: Beat[] }
 
   // Intersection Observer for infinite scroll
   useEffect(() => {
+    if (!hasMore || loading) return;
+
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries[0].isIntersecting && hasMore && !loading) {
+        if (entries[0].isIntersecting) {
           setPage((prev) => prev + 1);
         }
       },
       { threshold: 0.1 }
     );
 
-    if (sentinelRef.current) {
-      observer.observe(sentinelRef.current);
+    const currentSentinel = sentinelRef.current;
+    if (currentSentinel) {
+      observer.observe(currentSentinel);
     }
 
     return () => {
-      if (sentinelRef.current) {
-        observer.unobserve(sentinelRef.current);
+      if (currentSentinel) {
+        observer.unobserve(currentSentinel);
       }
     };
   }, [hasMore, loading]);
@@ -183,10 +202,10 @@ export default function BeatCatalogue({ beats: initialBeats }: { beats: Beat[] }
     <div className="w-full flex flex-col pt-4 animate-fadeIn">
       {/* Filter Bar */}
       <div className="sticky top-[60px] z-30 bg-bg-base border-b border-border-subtle py-3 mb-6 flex flex-col gap-3">
-        {/* Top filter row */}
-        <div className="flex flex-wrap items-center gap-2">
+        {/* Top filter row - scrollable on mobile, wrapping on desktop */}
+        <div className="flex items-center gap-2 overflow-x-auto lg:overflow-x-visible lg:flex-wrap whitespace-nowrap scrollbar-none pb-2 lg:pb-0 w-full">
           {/* Search box */}
-          <div className="relative w-full sm:w-[220px]">
+          <div className="relative flex-shrink-0 w-[200px] sm:w-[220px]">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted pointer-events-none" />
             <input
               type="text"
@@ -198,7 +217,7 @@ export default function BeatCatalogue({ beats: initialBeats }: { beats: Beat[] }
           </div>
 
           {/* Genre select */}
-          <div className="relative min-w-[110px]">
+          <div className="relative flex-shrink-0 min-w-[110px]">
             <select
               value={selectedGenre}
               onChange={(e) => setSelectedGenre(e.target.value)}
@@ -211,8 +230,19 @@ export default function BeatCatalogue({ beats: initialBeats }: { beats: Beat[] }
             <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-text-muted pointer-events-none" />
           </div>
 
-          {/* BPM select */}
-          <div className="relative min-w-[110px]">
+          {/* Mobile Filters Trigger (opens bottom sheet) */}
+          <button
+            onClick={() => setIsBottomSheetOpen(true)}
+            className={`md:hidden flex-shrink-0 btn-secondary h-9 px-3 text-[12px] uppercase font-syne flex items-center gap-1.5 bg-bg-surface cursor-pointer ${
+              selectedBpm !== "Any BPM" || selectedKey !== "Any key" ? "border-text-primary text-text-primary" : ""
+            }`}
+          >
+            <SlidersHorizontal className="w-3.5 h-3.5" />
+            Filters {(selectedBpm !== "Any BPM" || selectedKey !== "Any key") && "•"}
+          </button>
+
+          {/* BPM select (Desktop only) */}
+          <div className="relative flex-shrink-0 min-w-[110px] hidden md:block">
             <select
               value={selectedBpm}
               onChange={(e) => setSelectedBpm(e.target.value)}
@@ -225,8 +255,8 @@ export default function BeatCatalogue({ beats: initialBeats }: { beats: Beat[] }
             <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-text-muted pointer-events-none" />
           </div>
 
-          {/* Key select */}
-          <div className="relative min-w-[110px]">
+          {/* Key select (Desktop only) */}
+          <div className="relative flex-shrink-0 min-w-[110px] hidden md:block">
             <select
               value={selectedKey}
               onChange={(e) => setSelectedKey(e.target.value)}
@@ -240,7 +270,7 @@ export default function BeatCatalogue({ beats: initialBeats }: { beats: Beat[] }
           </div>
 
           {/* Sort select */}
-          <div className="relative min-w-[130px] ml-auto sm:ml-0">
+          <div className="relative flex-shrink-0 min-w-[130px]">
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value)}
@@ -257,7 +287,7 @@ export default function BeatCatalogue({ beats: initialBeats }: { beats: Beat[] }
           {activeFilterCount > 0 && (
             <button
               onClick={clearFilters}
-              className="btn-ghost h-9 text-[11px] font-syne uppercase text-text-muted hover:text-text-primary px-3 border border-dashed border-border-strong rounded-md flex items-center gap-1.5"
+              className="btn-ghost flex-shrink-0 h-9 text-[11px] font-syne uppercase text-text-muted hover:text-text-primary px-3 border border-dashed border-border-strong rounded-md flex items-center gap-1.5"
             >
               <X className="w-3.5 h-3.5" />
               Clear [{activeFilterCount}]
@@ -267,8 +297,8 @@ export default function BeatCatalogue({ beats: initialBeats }: { beats: Beat[] }
           {/* Spacer */}
           <div className="hidden lg:flex flex-1" />
 
-          {/* Grid/List toggles */}
-          <div className="flex border border-border-strong rounded-md overflow-hidden bg-bg-surface p-0.5 ml-auto sm:ml-0 flex-shrink-0">
+          {/* Grid/List toggles (Desktop only) */}
+          <div className="hidden md:flex border border-border-strong rounded-md overflow-hidden bg-bg-surface p-0.5 flex-shrink-0">
             <button
               onClick={() => setView("list")}
               className={`p-1.5 rounded-[var(--radius-sm)] transition-colors ${
@@ -293,6 +323,79 @@ export default function BeatCatalogue({ beats: initialBeats }: { beats: Beat[] }
             </button>
           </div>
         </div>
+
+        {/* Mobile bottom sheet modal for BPM/Key filters */}
+        {isBottomSheetOpen && (
+          <div className="md:hidden fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-xs">
+            <div className="absolute inset-0" onClick={() => setIsBottomSheetOpen(false)} />
+            <div className="relative w-full max-h-[80vh] bg-bg-surface border-t border-border-default rounded-t-xl p-6 flex flex-col gap-5 animate-slideUp overflow-y-auto">
+              <div className="flex justify-between items-center pb-2 border-b border-border-subtle">
+                <h3 className="font-syne font-bold text-[14px] text-text-primary uppercase tracking-wider">
+                  Select Filters
+                </h3>
+                <button 
+                  onClick={() => setIsBottomSheetOpen(false)}
+                  className="p-1 text-text-secondary hover:text-text-primary cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* BPM range */}
+              <div className="flex flex-col gap-2">
+                <label className="label">BPM Range</label>
+                <div className="relative">
+                  <select
+                    value={selectedBpm}
+                    onChange={(e) => setSelectedBpm(e.target.value)}
+                    className="input h-10 text-[13px] bg-bg-elevated pr-8 appearance-none cursor-pointer"
+                  >
+                    {bpms.map((b) => (
+                      <option key={b} value={b}>{b}</option>
+                    ))}
+                  </select>
+                  <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted pointer-events-none" />
+                </div>
+              </div>
+
+              {/* Key select */}
+              <div className="flex flex-col gap-2">
+                <label className="label">Key Signature</label>
+                <div className="relative">
+                  <select
+                    value={selectedKey}
+                    onChange={(e) => setSelectedKey(e.target.value)}
+                    className="input h-10 text-[13px] bg-bg-elevated pr-8 appearance-none cursor-pointer"
+                  >
+                    {keys.map((k) => (
+                      <option key={k} value={k}>{k}</option>
+                    ))}
+                  </select>
+                  <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted pointer-events-none" />
+                </div>
+              </div>
+
+              {/* Footer action buttons inside bottom sheet */}
+              <div className="flex gap-3 mt-4 pt-4 border-t border-border-subtle">
+                <button
+                  onClick={() => {
+                    setSelectedBpm("Any BPM");
+                    setSelectedKey("Any key");
+                  }}
+                  className="btn-secondary flex-1 py-2.5 text-[11px] uppercase font-syne cursor-pointer"
+                >
+                  Reset
+                </button>
+                <button
+                  onClick={() => setIsBottomSheetOpen(false)}
+                  className="btn-primary flex-1 py-2.5 text-[11px] uppercase font-syne cursor-pointer"
+                >
+                  Apply Filters
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Mood pills multi-select */}
         <div className="flex flex-wrap items-center gap-1.5 pt-1.5 border-t border-border-subtle/50">
@@ -339,7 +442,7 @@ export default function BeatCatalogue({ beats: initialBeats }: { beats: Beat[] }
       {view === "list" && sortedBeats.length > 0 && (
         <div className="w-full flex flex-col border border-border-default rounded-xl overflow-hidden bg-bg-surface shadow-sm">
           {/* Table Header */}
-          <div className="grid grid-cols-[36px_44px_1fr_80px_70px_110px_130px] gap-4 items-center bg-bg-elevated border-b border-border-default px-5 py-3 select-none">
+          <div className="hidden md:grid grid-cols-[36px_44px_1fr_80px_70px_110px_130px] gap-4 items-center bg-bg-elevated border-b border-border-default px-5 py-3 select-none">
             <div></div>
             <div></div>
             <span className="font-syne text-[11px] text-text-muted uppercase tracking-wider font-semibold">TITLE</span>
@@ -359,7 +462,7 @@ export default function BeatCatalogue({ beats: initialBeats }: { beats: Beat[] }
                 <div
                   key={beat.id}
                   onClick={() => setDetailModalBeat(beat)}
-                  className={`grid grid-cols-[36px_44px_1fr_80px_70px_110px_130px] gap-4 items-center px-5 py-3 border-b border-border-subtle cursor-pointer transition-all duration-100 ${
+                  className={`grid grid-cols-[36px_1fr_auto] md:grid-cols-[36px_44px_1fr_80px_70px_110px_130px] gap-3 md:gap-4 items-center px-4 md:px-5 py-3 border-b border-border-subtle cursor-pointer transition-all duration-100 ${
                     beat.exclusiveSold 
                       ? "opacity-50 hover:bg-transparent" 
                       : isCurrent 
@@ -388,8 +491,8 @@ export default function BeatCatalogue({ beats: initialBeats }: { beats: Beat[] }
                     </button>
                   </div>
 
-                  {/* Artwork */}
-                  <div>
+                  {/* Artwork - hidden on mobile, visible on desktop */}
+                  <div className="hidden md:block">
                     <div 
                       className={`w-10 h-10 rounded-md bg-gradient-to-br ${beat.coverColor} border border-border-default flex items-center justify-center shadow-inner overflow-hidden relative`}
                     >
@@ -397,35 +500,42 @@ export default function BeatCatalogue({ beats: initialBeats }: { beats: Beat[] }
                     </div>
                   </div>
 
-                  {/* Title and tags */}
-                  <div className="min-w-0">
-                    <h3 className="font-syne font-semibold text-[13px] sm:text-[14px] text-text-primary truncate leading-snug">
-                      {beat.title}
-                    </h3>
-                    <div className="flex flex-wrap gap-1 mt-1">
-                      {beat.tags.slice(0, 3).map((tag: string) => (
-                        <span 
-                          key={tag} 
-                          className="text-[9px] bg-bg-overlay text-text-secondary border border-border-subtle px-1.5 py-0.2 rounded-[2px]"
-                        >
-                          {tag}
-                        </span>
-                      ))}
+                  {/* Title and tags with inline mobile cover */}
+                  <div className="min-w-0 flex items-center gap-3">
+                    <div 
+                      className={`w-9 h-9 rounded bg-gradient-to-br ${beat.coverColor} border border-border-default flex md:hidden items-center justify-center shadow-inner overflow-hidden flex-shrink-0 relative`}
+                    >
+                      <Music className="w-4 h-4 text-text-secondary/40" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <h3 className="font-syne font-semibold text-[13px] sm:text-[14px] text-text-primary truncate leading-snug">
+                        {beat.title}
+                      </h3>
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {beat.tags.slice(0, 2).map((tag: string) => (
+                          <span 
+                            key={tag} 
+                            className="text-[9px] bg-bg-overlay text-text-secondary border border-border-subtle px-1.5 py-0.2 rounded-[2px]"
+                          >
+                            {tag}
+                          </span>
+                        ))}
+                      </div>
                     </div>
                   </div>
 
-                  {/* BPM */}
-                  <div className="font-mono text-[12px] text-text-secondary text-center">
+                  {/* BPM - hidden on mobile */}
+                  <div className="hidden md:block font-mono text-[12px] text-text-secondary text-center">
                     {beat.bpm}
                   </div>
 
-                  {/* Key */}
-                  <div className="font-mono text-[12px] text-text-secondary text-center whitespace-nowrap">
+                  {/* Key - hidden on mobile */}
+                  <div className="hidden md:block font-mono text-[12px] text-text-secondary text-center whitespace-nowrap">
                     {beat.key}
                   </div>
 
-                  {/* Pricing and badges */}
-                  <div className="flex flex-col">
+                  {/* Pricing and badges - hidden on mobile */}
+                  <div className="hidden md:flex flex-col">
                     {beat.exclusiveSold ? (
                       <span className="badge badge-danger text-[9px] w-fit">SOLD OUT</span>
                     ) : (
@@ -451,9 +561,16 @@ export default function BeatCatalogue({ beats: initialBeats }: { beats: Beat[] }
 
                   {/* Actions buttons */}
                   <div className="flex items-center gap-1.5 justify-end" onClick={(e) => e.stopPropagation()}>
+                    {/* Price display on mobile next to action button */}
+                    {!beat.exclusiveSold && (
+                      <div className="flex flex-col text-right md:hidden mr-1">
+                        <span className="text-[9px] text-text-muted font-mono uppercase leading-none">Price</span>
+                        <span className="font-syne font-bold text-[12px] text-text-primary">${beat.nonExclusivePrice.toFixed(2)}</span>
+                      </div>
+                    )}
                     <button
                       onClick={(e) => handleFreeDownload(e, beat)}
-                      className="btn-icon w-8 h-8 rounded-md border border-border-strong text-text-secondary hover:text-text-primary hover:border-border-focus"
+                      className="hidden sm:flex btn-icon w-8 h-8 rounded-md border border-border-strong text-text-secondary hover:text-text-primary hover:border-border-focus"
                       title="Download Free Preview MP3"
                     >
                       <Download className="w-3.5 h-3.5" />
@@ -476,11 +593,11 @@ export default function BeatCatalogue({ beats: initialBeats }: { beats: Beat[] }
                       </button>
                     ) : (
                       <button
-                        onClick={() => openCheckout(beat, "non-exclusive")}
+                        onClick={() => addToCart(beat, "non-exclusive")}
                         className="btn-primary h-8 px-3 text-[11px] uppercase font-syne font-medium flex items-center justify-center gap-1 flex-1 shadow-sm"
                       >
                         <ShoppingBag className="w-3 h-3" />
-                        Buy
+                        Add
                       </button>
                     )}
                   </div>
@@ -593,11 +710,11 @@ export default function BeatCatalogue({ beats: initialBeats }: { beats: Beat[] }
                         </button>
                       ) : (
                         <button
-                          onClick={() => openCheckout(beat, "non-exclusive")}
+                          onClick={() => addToCart(beat, "non-exclusive")}
                           className="btn-primary h-9 flex-1 flex items-center justify-center gap-1.5 text-[11px] uppercase font-syne font-medium shadow-sm"
                         >
                           <ShoppingBag className="w-3.5 h-3.5" />
-                          Buy
+                          Add to Cart
                         </button>
                       )}
                     </div>
@@ -617,7 +734,7 @@ export default function BeatCatalogue({ beats: initialBeats }: { beats: Beat[] }
         </div>
       )}
       
-      <div ref={sentinelRef} className="h-4" aria-hidden="true" />
+      {hasMore && <div ref={sentinelRef} className="h-4" aria-hidden="true" />}
 
     </div>
   );
