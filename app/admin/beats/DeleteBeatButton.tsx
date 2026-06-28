@@ -4,11 +4,13 @@ import React, { useState } from "react";
 import { Trash2, Loader2 } from "lucide-react";
 import { deleteBeat } from "./actions";
 import { useStore } from "../../../context/StoreContext";
+import { useRouter } from "next/navigation";
 
 export function DeleteBeatButton({ beatId, beatTitle }: { beatId: string; beatTitle: string }) {
   const [isLoading, setIsLoading] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const { showToast } = useStore();
+  const router = useRouter();
 
   const handleDelete = async () => {
     setIsLoading(true);
@@ -16,8 +18,7 @@ export function DeleteBeatButton({ beatId, beatTitle }: { beatId: string; beatTi
       const result = await deleteBeat(beatId);
       if (result.success) {
         showToast(`"${beatTitle}" deleted successfully`, "success");
-        // Trigger a page reload to update the list
-        window.location.reload();
+        router.refresh();
       } else {
         showToast(result.error || "Failed to delete beat", "error");
       }

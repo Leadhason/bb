@@ -181,15 +181,31 @@ export default function BeatCatalogue({ beats: initialBeats }: { beats: Beat[] }
   };
 
   // Handle MP3 Free Download trigger
-  const handleFreeDownload = (e: React.MouseEvent, beat: Beat) => {
+  const handleFreeDownload = async (e: React.MouseEvent, beat: Beat) => {
     e.stopPropagation();
-    showToast(`Downloading free MP3 preview: ${beat.title}`, "success");
-    const link = document.createElement("a");
-    link.href = beat.mp3Url;
-    link.setAttribute("download", `${beat.title} - Preview.mp3`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    showToast(`Preparing download: ${beat.title}...`, "success");
+    try {
+      const response = await fetch(beat.mp3Url);
+      if (!response.ok) throw new Error("Network response was not ok");
+      
+      const blob = await response.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      
+      const link = document.createElement("a");
+      link.href = blobUrl;
+      link.setAttribute("download", `${beat.title.replace(/[^a-zA-Z0-9.-]/g, "_")} - Preview.mp3`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      URL.revokeObjectURL(blobUrl);
+      showToast(`Downloaded free preview for "${beat.title}"`, "success");
+    } catch (error) {
+      console.error("Failed to download file:", error);
+      // Fallback: open in new window if blob download fails (e.g. mock SoundHelix CORS block)
+      window.open(beat.mp3Url, "_blank");
+      showToast("Opening preview in new window", "success");
+    }
   };
 
   const genres = ["All genres", "UK Drill", "Trap", "Hip Hop"];
@@ -496,7 +512,11 @@ export default function BeatCatalogue({ beats: initialBeats }: { beats: Beat[] }
                     <div 
                       className={`w-10 h-10 rounded-md bg-gradient-to-br ${beat.coverColor} border border-border-default flex items-center justify-center shadow-inner overflow-hidden relative`}
                     >
-                      <Music className="w-4.5 h-4.5 text-text-secondary/40" />
+                      {beat.coverUrl ? (
+                        <img src={beat.coverUrl} alt={beat.title} className="w-full h-full object-cover" />
+                      ) : (
+                        <Music className="w-4.5 h-4.5 text-text-secondary/40" />
+                      )}
                     </div>
                   </div>
 
@@ -505,7 +525,11 @@ export default function BeatCatalogue({ beats: initialBeats }: { beats: Beat[] }
                     <div 
                       className={`w-9 h-9 rounded bg-gradient-to-br ${beat.coverColor} border border-border-default flex md:hidden items-center justify-center shadow-inner overflow-hidden flex-shrink-0 relative`}
                     >
-                      <Music className="w-4 h-4 text-text-secondary/40" />
+                      {beat.coverUrl ? (
+                        <img src={beat.coverUrl} alt={beat.title} className="w-full h-full object-cover" />
+                      ) : (
+                        <Music className="w-4 h-4 text-text-secondary/40" />
+                      )}
                     </div>
                     <div className="min-w-0 flex-1">
                       <h3 className="font-syne font-semibold text-[13px] sm:text-[14px] text-text-primary truncate leading-snug">
@@ -625,10 +649,16 @@ export default function BeatCatalogue({ beats: initialBeats }: { beats: Beat[] }
               >
                 {/* Artwork Area */}
                 <div className="relative aspect-square w-full bg-bg-elevated flex items-center justify-center overflow-hidden border-b border-border-default">
-                  {/* High quality CSS color mesh */}
-                  <div className={`absolute inset-0 bg-gradient-to-br ${beat.coverColor}`} />
+                  {/* High quality CSS color mesh or Cover Image */}
+                  {beat.coverUrl ? (
+                    <img src={beat.coverUrl} alt={beat.title} className="absolute inset-0 w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />
+                  ) : (
+                    <div className={`absolute inset-0 bg-gradient-to-br ${beat.coverColor}`} />
+                  )}
                   
-                  <Disc className={`absolute w-16 h-16 text-text-secondary/30 ${isPlayingCurrent ? "animate-[spin_6s_linear_infinite]" : ""}`} />
+                  {!beat.coverUrl && (
+                    <Disc className={`absolute w-16 h-16 text-text-secondary/30 ${isPlayingCurrent ? "animate-[spin_6s_linear_infinite]" : ""}`} />
+                  )}
 
                   {/* BPM overlay in Mono */}
                   <div className="absolute bottom-3 right-3 bg-black/65 font-mono text-[10px] text-white px-2 py-0.5 rounded-[var(--radius-sm)]">

@@ -4,11 +4,13 @@ import React, { useEffect, useState, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Loader2, AlertCircle, CheckCircle } from "lucide-react";
 import Link from "next/link";
+import { useStore } from "../../../context/StoreContext";
 
 function CallbackContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const reference = searchParams.get("reference") || searchParams.get("trxref");
+  const { clearCart } = useStore();
   
   const [status, setStatus] = useState<"verifying" | "success" | "timeout" | "error">("verifying");
   const [errorMsg, setErrorMsg] = useState("");
@@ -33,6 +35,7 @@ function CallbackContent() {
         if (response.ok && data.success && data.orderRef) {
           setStatus("success");
           setRedirectUrl(`/order/${data.orderRef}`);
+          clearCart();
           
           // Redirect after 1.5 seconds so user sees the success state
           setTimeout(() => {

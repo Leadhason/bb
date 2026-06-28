@@ -250,7 +250,11 @@ export default function BeatDetailModal() {
             <div 
               className={`w-full max-w-[160px] aspect-square rounded-lg bg-gradient-to-br ${detailModalBeat.coverColor} flex items-center justify-center border border-border-default shadow-md overflow-hidden relative`}
             >
-              <Disc className={`w-12 h-12 text-text-secondary/50 ${isCurrentPlaying && isPlaying ? "animate-[spin_6s_linear_infinite]" : ""}`} />
+              {detailModalBeat.coverUrl ? (
+                <img src={detailModalBeat.coverUrl} alt={detailModalBeat.title} className="w-full h-full object-cover" />
+              ) : (
+                <Disc className={`w-12 h-12 text-text-secondary/50 ${isCurrentPlaying && isPlaying ? "animate-[spin_6s_linear_infinite]" : ""}`} />
+              )}
             </div>
           </div>
 

@@ -24,6 +24,13 @@ export default async function EditBeatPage({ params }: PageProps) {
     notFound();
   }
 
+  const serializedBeat = {
+    ...beat,
+    nonExclusivePrice: Number(beat.nonExclusivePrice),
+    exclusivePrice: Number(beat.exclusivePrice),
+    createdAt: beat.createdAt.toISOString(),
+  };
+
   return (
     <div className="max-w-3xl mx-auto space-y-6">
       <Breadcrumb items={[
@@ -44,7 +51,7 @@ export default async function EditBeatPage({ params }: PageProps) {
         <p className="font-mono text-sm text-text-muted mt-2">{beat.title}</p>
       </div>
 
-      <BeatEditForm beat={beat} />
+      <BeatEditForm beat={serializedBeat} />
     </div>
   );
 }

@@ -67,7 +67,9 @@ export async function GET(
 
     const { data, error } = await supabaseAdmin.storage
       .from("clean-wavs")
-      .createSignedUrl(fileKey, 300); // 5 minutes signed link
+      .createSignedUrl(fileKey, 300, {
+        download: `${order.beat.title.replace(/[^a-zA-Z0-9.-]/g, "_")}.wav`,
+      }); // 5 minutes signed link with forced attachment download
 
     if (error || !data?.signedUrl) {
       console.error("Supabase Storage signed URL generation failed:", error);

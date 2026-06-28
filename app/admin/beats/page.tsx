@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Plus, Edit, Trash2, Eye, EyeOff } from "lucide-react";
 import { PublishToggle } from "./PublishToggle";
 import { DeleteBeatButton } from "./DeleteBeatButton";
+import { DeleteUnpublishedBeatsButton } from "./DeleteUnpublishedBeatsButton";
 
 export default async function BeatsPage() {
   // Authorization is handled by layout middleware
@@ -12,20 +13,25 @@ export default async function BeatsPage() {
     orderBy: { createdAt: "desc" },
   });
 
+  const unpublishedCount = beats.filter((beat) => !beat.published).length;
+
   return (
     <div className="space-y-8">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
           <h1 className="font-syne text-3xl font-bold text-text-primary">Beats Management</h1>
           <p className="font-mono text-sm text-text-muted mt-2">Manage your beat catalogue</p>
         </div>
-        <Link
-          href="/admin/beats/new"
-          className="btn-primary h-10 px-5 text-sm uppercase font-syne font-medium flex items-center gap-2"
-        >
-          <Plus className="w-4 h-4" />
-          Upload Beat
-        </Link>
+        <div className="flex items-center gap-3">
+          <DeleteUnpublishedBeatsButton count={unpublishedCount} />
+          <Link
+            href="/admin/beats/new"
+            className="btn-primary h-10 px-5 text-sm uppercase font-syne font-medium flex items-center gap-2"
+          >
+            <Plus className="w-4 h-4" />
+            Upload Beat
+          </Link>
+        </div>
       </div>
 
       {beats.length === 0 ? (

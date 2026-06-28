@@ -474,6 +474,13 @@ export function StoreProvider({ children, initialBeats = [] }: { children: React
     // Update source if different
     const isCurrentSrc = audio.src === activeBeat.mp3Url;
     if (!isCurrentSrc) {
+      // Set crossOrigin dynamically to allow Web Audio API analysis for Supabase files,
+      // while avoiding CORS failures for third-party mock URLs (e.g. SoundHelix).
+      if (activeBeat.mp3Url.includes("supabase.co") || activeBeat.mp3Url.includes("supabase")) {
+        audio.crossOrigin = "anonymous";
+      } else {
+        audio.crossOrigin = null;
+      }
       audio.src = activeBeat.mp3Url;
       audio.load();
       setCurrentTime(0);

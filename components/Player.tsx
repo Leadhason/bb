@@ -70,17 +70,33 @@ export default function Player() {
   }, []);
 
   // Handle free preview MP3 download
-  const handleDownload = (e: React.MouseEvent) => {
+  const handleDownload = async (e: React.MouseEvent) => {
     e.stopPropagation();
     if (!activeBeat) return;
     
-    showToast(`Downloading free MP3 preview: ${activeBeat.title}`, "success");
-    const link = document.createElement("a");
-    link.href = activeBeat.mp3Url;
-    link.setAttribute("download", `${activeBeat.title} - Preview.mp3`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    showToast(`Preparing download: ${activeBeat.title}...`, "success");
+    try {
+      const response = await fetch(activeBeat.mp3Url);
+      if (!response.ok) throw new Error("Network response was not ok");
+      
+      const blob = await response.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      
+      const link = document.createElement("a");
+      link.href = blobUrl;
+      link.setAttribute("download", `${activeBeat.title.replace(/[^a-zA-Z0-9.-]/g, "_")} - Preview.mp3`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      URL.revokeObjectURL(blobUrl);
+      showToast(`Downloaded free preview for "${activeBeat.title}"`, "success");
+    } catch (error) {
+      console.error("Failed to download file:", error);
+      // Fallback: open in new window if blob download fails (e.g. mock SoundHelix CORS block)
+      window.open(activeBeat.mp3Url, "_blank");
+      showToast("Opening preview in new window", "success");
+    }
   };
 
   // Scrubber click/drag handler
@@ -205,14 +221,20 @@ export default function Player() {
               <div 
                 className={`w-10 h-10 rounded-[5px] bg-gradient-to-br ${activeBeat.coverColor} flex items-center justify-center border border-border-default flex-shrink-0 shadow-inner overflow-hidden relative group`}
               >
-                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-                  <Music className="w-3.5 h-3.5 text-white" />
-                </div>
-                <Disc 
-                  className={`w-5 h-5 text-text-secondary ${
-                    isPlaying ? "animate-[spin_4s_linear_infinite]" : ""
-                  }`} 
-                />
+                {activeBeat.coverUrl ? (
+                  <img src={activeBeat.coverUrl} alt={activeBeat.title} className="w-full h-full object-cover" />
+                ) : (
+                  <>
+                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                      <Music className="w-3.5 h-3.5 text-white" />
+                    </div>
+                    <Disc 
+                      className={`w-5 h-5 text-text-secondary ${
+                        isPlaying ? "animate-[spin_4s_linear_infinite]" : ""
+                      }`} 
+                    />
+                  </>
+                )}
               </div>
               <div className="overflow-hidden">
                 <h4 className="font-syne font-medium text-[13px] text-text-primary truncate leading-tight">

@@ -4,10 +4,12 @@ import React, { useState } from "react";
 import { Eye, EyeOff, Loader2 } from "lucide-react";
 import { toggleBeatPublish } from "./actions";
 import { useStore } from "../../../context/StoreContext";
+import { useRouter } from "next/navigation";
 
 export function PublishToggle({ beatId, isPublished }: { beatId: string; isPublished: boolean }) {
   const [isLoading, setIsLoading] = useState(false);
   const { showToast } = useStore();
+  const router = useRouter();
 
   const handleToggle = async () => {
     setIsLoading(true);
@@ -18,8 +20,7 @@ export function PublishToggle({ beatId, isPublished }: { beatId: string; isPubli
           `Beat ${!isPublished ? "published" : "unpublished"} successfully`,
           "success"
         );
-        // Trigger a page reload to update the list
-        window.location.reload();
+        router.refresh();
       } else {
         showToast(result.error || "Failed to update beat", "error");
       }

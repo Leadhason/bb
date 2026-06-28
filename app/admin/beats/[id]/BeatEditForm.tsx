@@ -5,9 +5,27 @@ import { updateBeat } from "../actions";
 import { useRouter } from "next/navigation";
 import { useStore } from "../../../../context/StoreContext";
 import Link from "next/link";
-import type { Beat } from "@prisma/client";
+interface SerializedBeat {
+  id: string;
+  title: string;
+  bpm: number;
+  key: string;
+  genre: string;
+  tags: string[];
+  coverUrl: string;
+  mp3Url: string;
+  wavUrl: string;
+  nonExclusiveEnabled: boolean;
+  nonExclusivePrice: number;
+  nonExclusiveCap: number | null;
+  exclusiveEnabled: boolean;
+  exclusivePrice: number;
+  exclusiveSold: boolean;
+  published: boolean;
+  createdAt: string;
+}
 
-export default function BeatEditForm({ beat }: { beat: Beat }) {
+export default function BeatEditForm({ beat }: { beat: SerializedBeat }) {
   const router = useRouter();
   const { showToast } = useStore();
   const [isLoading, setIsLoading] = useState(false);
@@ -18,7 +36,7 @@ export default function BeatEditForm({ beat }: { beat: Beat }) {
     key: beat.key,
     genre: beat.genre,
     tags: beat.tags.join(", "),
-    isGiveaway: beat.nonExclusivePrice.toNumber() === 0 && beat.exclusivePrice.toNumber() === 0,
+    isGiveaway: beat.nonExclusivePrice === 0 && beat.exclusivePrice === 0,
     nonExclusiveEnabled: beat.nonExclusiveEnabled,
     nonExclusivePrice: beat.nonExclusivePrice.toString(),
     nonExclusiveCap: beat.nonExclusiveCap?.toString() || "",

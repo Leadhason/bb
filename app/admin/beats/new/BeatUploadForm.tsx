@@ -1,9 +1,9 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { uploadBeatAction } from "./actions";
 import { useStore } from "../../../../context/StoreContext";
-import { Upload } from "lucide-react";
+import { Upload, Image as ImageIcon, Music, Lock, FileAudio, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { supabase } from "../../../../lib/supabase";
 
@@ -30,9 +30,6 @@ export default function BeatUploadForm() {
     published: true,
   });
 
-  // Basic file state (for actual file uploads to Supabase, we would handle logic with Supabase Storage)
-  // For the moment, we only accept text inputs or simple files.
-  // We'll set these up to capture the File object.
   const [files, setFiles] = useState<{
     cover: File | null;
     mp3: File | null;
@@ -42,6 +39,27 @@ export default function BeatUploadForm() {
     mp3: null,
     wav: null
   });
+
+  const [previews, setPreviews] = useState<{
+    cover: string | null;
+    mp3: string | null;
+    wav: string | null;
+  }>({
+    cover: null,
+    mp3: null,
+    wav: null
+  });
+
+  const previewsRef = useRef(previews);
+  previewsRef.current = previews;
+
+  useEffect(() => {
+    return () => {
+      if (previewsRef.current.cover) URL.revokeObjectURL(previewsRef.current.cover);
+      if (previewsRef.current.mp3) URL.revokeObjectURL(previewsRef.current.mp3);
+      if (previewsRef.current.wav) URL.revokeObjectURL(previewsRef.current.wav);
+    };
+  }, []);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -69,8 +87,26 @@ export default function BeatUploadForm() {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, type: keyof typeof files) => {
     const fileList = e.target.files;
     if (fileList && fileList.length > 0) {
-      setFiles(prev => ({ ...prev, [type]: fileList[0] }));
+      const file = fileList[0];
+      setFiles(prev => ({ ...prev, [type]: file }));
+
+      if (previews[type]) {
+        URL.revokeObjectURL(previews[type]!);
+      }
+
+      setPreviews(prev => ({
+        ...prev,
+        [type]: URL.createObjectURL(file)
+      }));
     }
+  };
+
+  const handleRemoveFile = (type: keyof typeof files) => {
+    setFiles(prev => ({ ...prev, [type]: null }));
+    if (previews[type]) {
+      URL.revokeObjectURL(previews[type]!);
+    }
+    setPreviews(prev => ({ ...prev, [type]: null }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -102,24 +138,31 @@ export default function BeatUploadForm() {
       if (wavError) throw new Error(`WAV upload failed: ${wavError.message}`);
       const wavUrl = wavPath; // We store the internal path because we generate signed URLs later
 
-      const submitData = new FormData();
-      Object.entries(formData).forEach(([key, value]) => submitData.append(key, value));
-      Object.entries(toggles).forEach(([key, value]) => submitData.append(key, String(value)));
-      
-      // Handle giveaway pricing
-      if (toggles.isGiveaway) {
-        submitData.set("nonExclusivePrice", "0");
-        submitData.set("exclusivePrice", "0");
-        submitData.set("nonExclusiveEnabled", "true");
-        submitData.set("exclusiveEnabled", "false");
-      }
-      
-      submitData.append("coverUrl", coverUrl);
-      submitData.append("mp3Url", mp3Url);
-      submitData.append("wavUrl", wavUrl);
+      const tagsArray = formData.tags
+        ? formData.tags.split(",").map((tag: string) => tag.trim()).filter(Boolean)
+        : [];
+
+      const isGiveaway = toggles.isGiveaway;
+
+      const payload = {
+        title: formData.title,
+        bpm: parseInt(formData.bpm, 10) || 0,
+        key: formData.key,
+        genre: formData.genre,
+        tags: tagsArray,
+        coverUrl,
+        mp3Url,
+        wavUrl,
+        nonExclusiveEnabled: isGiveaway ? true : toggles.nonExclusiveEnabled,
+        nonExclusivePrice: isGiveaway ? 0 : parseFloat(formData.nonExclusivePrice) || 0,
+        nonExclusiveCap: (!isGiveaway && formData.nonExclusiveCap) ? parseInt(formData.nonExclusiveCap, 10) : null,
+        exclusiveEnabled: isGiveaway ? false : toggles.exclusiveEnabled,
+        exclusivePrice: isGiveaway ? 0 : parseFloat(formData.exclusivePrice) || 0,
+        published: toggles.published,
+      };
 
       showToast("Saving metadata to database...", "success");
-      const result = await uploadBeatAction(submitData);
+      const result = await uploadBeatAction(payload);
 
       if (result.success) {
         showToast("Beat uploaded successfully!", "success");
@@ -141,18 +184,100 @@ export default function BeatUploadForm() {
       <div className="space-y-4">
         <h2 className="font-syne font-semibold text-lg border-b border-border-subtle pb-2">Files</h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          
+          {/* Cover Art Slot */}
           <div className="space-y-2">
-            <label className="font-mono text-xs uppercase tracking-wider text-text-muted">Cover Art (Square)</label>
-            <input type="file" accept="image/*" onChange={(e) => handleFileChange(e, "cover")} className="text-sm file:bg-bg-elevated file:border-border-strong file:border file:rounded-md file:px-3 file:py-1.5 file:text-text-primary file:font-mono file:text-xs" required />
+            <label className="font-mono text-xs uppercase tracking-wider text-text-muted block">Cover Art (Square) *</label>
+            {!files.cover ? (
+              <div className="relative border border-dashed border-border-strong rounded-xl aspect-square flex flex-col items-center justify-center p-4 hover:border-border-focus transition-all group cursor-pointer bg-bg-elevated/10">
+                <input type="file" accept="image/*" onChange={(e) => handleFileChange(e, "cover")} className="absolute inset-0 opacity-0 cursor-pointer z-10" required />
+                <ImageIcon className="w-8 h-8 text-text-muted group-hover:text-text-secondary transition-colors mb-2" />
+                <span className="font-syne text-xs text-text-secondary font-medium">Select Image</span>
+                <span className="font-mono text-[9px] text-text-muted mt-1 uppercase">JPG, PNG up to 5MB</span>
+              </div>
+            ) : (
+              <div className="relative border border-border-strong rounded-xl aspect-square overflow-hidden group bg-bg-elevated/10">
+                <img src={previews.cover!} alt="Cover preview" className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />
+                <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center p-3 transition-opacity duration-200">
+                  <span className="font-syne text-xs text-white font-medium text-center truncate w-full mb-3 px-2">{files.cover.name}</span>
+                  <button type="button" onClick={() => handleRemoveFile("cover")} className="flex items-center justify-center gap-1.5 py-1.5 px-4 text-xs text-badge-danger-text border border-badge-danger-text/20 bg-badge-danger-bg hover:bg-badge-danger-bg/80 transition-colors font-syne font-medium rounded-md">
+                    <X className="w-3.5 h-3.5" /> Remove
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
+
+          {/* Watermarked MP3 Slot */}
           <div className="space-y-2">
-            <label className="font-mono text-xs uppercase tracking-wider text-text-muted">Watermarked MP3</label>
-            <input type="file" accept="audio/mpeg" onChange={(e) => handleFileChange(e, "mp3")} className="text-sm file:bg-bg-elevated file:border-border-strong file:border file:rounded-md file:px-3 file:py-1.5 file:text-text-primary file:font-mono file:text-xs" required />
+            <label className="font-mono text-xs uppercase tracking-wider text-text-muted block">Watermarked MP3 Preview *</label>
+            {!files.mp3 ? (
+              <div className="relative border border-dashed border-border-strong rounded-xl flex flex-col items-center justify-center p-6 aspect-square hover:border-border-focus transition-all group cursor-pointer bg-bg-elevated/10">
+                <input type="file" accept="audio/mpeg" onChange={(e) => handleFileChange(e, "mp3")} className="absolute inset-0 opacity-0 cursor-pointer z-10" required />
+                <Music className="w-8 h-8 text-text-muted group-hover:text-text-secondary transition-colors mb-2" />
+                <span className="font-syne text-xs text-text-secondary font-medium">Select MP3</span>
+                <span className="font-mono text-[9px] text-text-muted mt-1 uppercase">MP3 format only</span>
+              </div>
+            ) : (
+              <div className="border border-border-strong rounded-xl p-5 bg-bg-elevated/20 flex flex-col justify-between aspect-square">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-10 h-10 bg-bg-elevated border border-border-strong rounded-lg flex items-center justify-center flex-shrink-0">
+                      <FileAudio className="w-5 h-5 text-text-primary" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="font-syne text-xs font-semibold text-text-primary truncate">{files.mp3.name}</p>
+                      <p className="font-mono text-[10px] text-text-muted mt-0.5">{(files.mp3.size / (1024 * 1024)).toFixed(2)} MB</p>
+                    </div>
+                  </div>
+                  <button type="button" onClick={() => handleRemoveFile("mp3")} className="btn-icon !w-7 !h-7 text-text-muted hover:text-badge-danger-text hover:border-badge-danger-text/20 transition-colors" title="Remove File">
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+                
+                <div className="mt-auto">
+                  <p className="font-mono text-[10px] text-text-muted mb-2 uppercase tracking-wide">Audio Preview:</p>
+                  <audio src={previews.mp3!} controls className="w-full h-8 opacity-90 filter invert dark:invert-0" />
+                </div>
+              </div>
+            )}
           </div>
+
+          {/* Clean WAV Slot */}
           <div className="space-y-2">
-            <label className="font-mono text-xs uppercase tracking-wider text-text-muted">Clean WAV</label>
-            <input type="file" accept="audio/wav" onChange={(e) => handleFileChange(e, "wav")} className="text-sm file:bg-bg-elevated file:border-border-strong file:border file:rounded-md file:px-3 file:py-1.5 file:text-text-primary file:font-mono file:text-xs" required />
+            <label className="font-mono text-xs uppercase tracking-wider text-text-muted block">Clean WAV (Private) *</label>
+            {!files.wav ? (
+              <div className="relative border border-dashed border-border-strong rounded-xl flex flex-col items-center justify-center p-6 aspect-square hover:border-border-focus transition-all group cursor-pointer bg-bg-elevated/10">
+                <input type="file" accept="audio/wav" onChange={(e) => handleFileChange(e, "wav")} className="absolute inset-0 opacity-0 cursor-pointer z-10" required />
+                <Lock className="w-8 h-8 text-text-muted group-hover:text-text-secondary transition-colors mb-2" />
+                <span className="font-syne text-xs text-text-secondary font-medium">Select Master WAV</span>
+                <span className="font-mono text-[9px] text-text-muted mt-1 uppercase">Private & Secured</span>
+              </div>
+            ) : (
+              <div className="border border-border-strong rounded-xl p-5 bg-bg-elevated/20 flex flex-col justify-between aspect-square">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-10 h-10 bg-bg-elevated border border-border-strong rounded-lg flex items-center justify-center flex-shrink-0">
+                      <FileAudio className="w-5 h-5 text-text-primary" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="font-syne text-xs font-semibold text-text-primary truncate">{files.wav.name}</p>
+                      <p className="font-mono text-[10px] text-text-muted mt-0.5">{(files.wav.size / (1024 * 1024)).toFixed(2)} MB</p>
+                    </div>
+                  </div>
+                  <button type="button" onClick={() => handleRemoveFile("wav")} className="btn-icon !w-7 !h-7 text-text-muted hover:text-badge-danger-text hover:border-badge-danger-text/20 transition-colors" title="Remove File">
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+                
+                <div className="mt-auto flex items-center gap-2 bg-badge-success-bg/10 border border-badge-success-text/20 rounded-lg px-3 py-2 text-badge-success-text">
+                  <Lock className="w-3.5 h-3.5" />
+                  <span className="font-syne text-[10px] uppercase font-bold tracking-wider">Private Staged</span>
+                </div>
+              </div>
+            )}
           </div>
+
         </div>
       </div>
 
