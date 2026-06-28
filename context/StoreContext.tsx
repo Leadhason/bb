@@ -693,41 +693,70 @@ export function StoreProvider({ children, initialBeats = [] }: { children: React
     setCheckout((prev) => ({ ...prev, ...fields }));
   };
 
-  const applyDiscount = (code: string) => {
+  const applyDiscount = async (code: string) => {
     const cleanCode = code.trim().toUpperCase();
     if (!cleanCode) {
-      setCheckout((prev) => ({ ...prev, discountError: "" }));
+      setCheckout((prev) => ({ ...prev, discountError: "", discountApplied: false, discountPercentage: 0 }));
       return;
     }
 
-    if (cleanCode === "DRILL20") {
-      setCheckout((prev) => ({
-        ...prev,
-        discountCode: cleanCode,
-        discountApplied: true,
-        discountPercentage: 20,
-        discountError: "",
-      }));
-      showToast("Promo code applied: 20% OFF", "success");
-    } else if (cleanCode === "FREEBEAT") {
-      setCheckout((prev) => ({
-        ...prev,
-        discountCode: cleanCode,
-        discountApplied: true,
-        discountPercentage: 100,
-        discountError: "",
-      }));
-      showToast("Promo code applied: 100% OFF!", "success");
-    } else {
+    // Calculate base price to calculate fixed discount percentages if needed
+    let basePrice = 0;
+    if (checkout.isCart) {
+      basePrice = cartItems.reduce((sum, item) => {
+        const price = item.licenseType === "non-exclusive" 
+          ? Number(item.beat.nonExclusivePrice) 
+          : Number(item.beat.exclusivePrice);
+        return sum + price;
+      }, 0);
+    } else if (checkout.beat) {
+      basePrice = checkout.licenseType === "non-exclusive"
+        ? Number(checkout.beat.nonExclusivePrice)
+        : Number(checkout.beat.exclusivePrice);
+    }
+
+    try {
+      const { validateDiscountCodeAction } = await import("../app/admin/promotions/actions");
+      const res = await validateDiscountCodeAction(cleanCode);
+
+      if (res.success && res.discount) {
+        const discount = res.discount;
+        let percentage = 0;
+        if (discount.type === "PERCENTAGE") {
+          percentage = discount.value;
+        } else {
+          percentage = basePrice > 0 ? Math.min(100, Math.round((discount.value / basePrice) * 100)) : 0;
+        }
+
+        setCheckout((prev) => ({
+          ...prev,
+          discountCode: cleanCode,
+          discountApplied: true,
+          discountPercentage: percentage,
+          discountError: "",
+        }));
+        showToast(`Promo code applied: ${percentage}% OFF`, "success");
+      } else {
+        setCheckout((prev) => ({
+          ...prev,
+          discountApplied: false,
+          discountPercentage: 0,
+          discountError: res.error || "Invalid discount code",
+        }));
+        showToast(res.error || "Invalid discount code", "error");
+      }
+    } catch (error) {
+      console.error("Error applying discount:", error);
       setCheckout((prev) => ({
         ...prev,
         discountApplied: false,
         discountPercentage: 0,
-        discountError: "Invalid discount code",
+        discountError: "Validation failed",
       }));
-      showToast("Invalid discount code", "error");
+      showToast("Validation failed", "error");
     }
   };
+
 
   const resetCheckout = () => {
     setCheckout({

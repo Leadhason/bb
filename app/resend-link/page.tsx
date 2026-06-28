@@ -13,7 +13,7 @@ export default function ResendLink() {
   const [success, setSuccess] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg("");
     setLoading(true);
@@ -21,22 +21,33 @@ export default function ResendLink() {
     const cleanRef = orderRef.trim().toUpperCase();
     const cleanEmail = email.trim().toLowerCase();
 
-    setTimeout(() => {
-      setLoading(false);
-      
-      // Simulation test rules:
-      // Valid order formats must match "ORD-" followed by numbers
-      const isValidRef = /^ORD-\d{6}$/.test(cleanRef);
+    try {
+      const response = await fetch("/api/orders/resend-link", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email: cleanEmail, orderRef: cleanRef }),
+      });
 
-      if (!isValidRef) {
-        setErrorMsg("Order reference not found. Correct format is ORD-XXXXXX");
-        showToast("Invalid order reference provided.", "error");
+      const data = await response.json();
+
+      if (!response.ok) {
+        setErrorMsg(data.error || "Order reference not found.");
+        showToast(data.error || "Invalid details provided.", "error");
       } else {
         setSuccess(true);
         showToast("New download links dispatched successfully!", "success");
       }
-    }, 2000);
+    } catch (err) {
+      console.error("Link recovery request error:", err);
+      setErrorMsg("An unexpected network error occurred. Please try again.");
+      showToast("Network error. Please try again.", "error");
+    } finally {
+      setLoading(false);
+    }
   };
+
 
   return (
     <div className="w-full max-w-[400px] mx-auto pt-16 pb-24 animate-fadeIn">

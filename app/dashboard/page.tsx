@@ -34,27 +34,8 @@ export default function Dashboard() {
   const [profileEmail, setProfileEmail] = useState("");
   const [savingProfile, setSavingProfile] = useState(false);
 
-  // Mock purchased beats list
-  const mockPurchased: PurchasedBeat[] = [
-    {
-      id: "purch-1",
-      title: "Ghost Town",
-      genre: "UK Drill",
-      licenseType: "Non-Exclusive",
-      purchaseDate: "2026-05-20",
-      coverColor: "from-zinc-900 to-black border-zinc-800",
-      orderRef: "ORD-849204"
-    },
-    {
-      id: "purch-2",
-      title: "Spitfire",
-      genre: "Trap",
-      licenseType: "Exclusive",
-      purchaseDate: "2026-05-14",
-      coverColor: "from-amber-950/30 to-black border-amber-950/40",
-      orderRef: "ORD-930492"
-    }
-  ];
+  const [purchasedBeats, setPurchasedBeats] = useState<PurchasedBeat[]>([]);
+  const [loadingPurchases, setLoadingPurchases] = useState(true);
 
   // Auto fill profile values when Clerk user is loaded
   useEffect(() => {
@@ -64,12 +45,37 @@ export default function Dashboard() {
     }
   }, [isLoaded, user]);
 
+  // Fetch real purchases from API
+  useEffect(() => {
+    if (isSignedIn && user) {
+      const fetchPurchases = async () => {
+        try {
+          const response = await fetch("/api/dashboard/purchases");
+          const data = await response.json();
+          if (response.ok && data.purchases) {
+            setPurchasedBeats(data.purchases);
+          } else {
+            showToast(data.error || "Failed to load purchases", "error");
+          }
+        } catch (e) {
+          console.error("Dashboard purchases fetch error:", e);
+          showToast("Network error loading purchases.", "error");
+        } finally {
+          setLoadingPurchases(false);
+        }
+      };
+      fetchPurchases();
+    }
+  }, [isSignedIn, user, showToast]);
+
   // If loading user session state
-  if (!isLoaded) {
+  if (!isLoaded || (isSignedIn && loadingPurchases)) {
     return (
       <div className="flex flex-col items-center justify-center py-32 gap-3 text-text-muted">
         <Loader2 className="w-8 h-8 animate-spin" />
-        <span className="font-syne text-[13px]">Verifying account authentication session...</span>
+        <span className="font-syne text-[13px]">
+          {!isLoaded ? "Verifying account authentication session..." : "Loading your purchases..."}
+        </span>
       </div>
     );
   }
@@ -97,23 +103,34 @@ export default function Dashboard() {
     );
   }
 
-  // Handle re-download simulation
+  // Handle re-download from database
   const handleReDownload = (beat: PurchasedBeat) => {
     setDownloadingId(beat.id);
     showToast(`Generating signed URL for: ${beat.title}...`, "neutral");
 
-    setTimeout(() => {
+    try {
+      // Direct browser to private download endpoint
+      window.location.href = `/api/orders/${beat.orderRef}/download`;
+
+      // Refresh list to update attempts count
+      setTimeout(async () => {
+        try {
+          const response = await fetch("/api/dashboard/purchases");
+          const data = await response.json();
+          if (response.ok && data.purchases) {
+            setPurchasedBeats(data.purchases);
+          }
+        } catch (e) {
+          console.error(e);
+        }
+        setDownloadingId(null);
+        showToast(`WAV master download initiated!`, "success");
+      }, 3000);
+    } catch (e) {
+      console.error(e);
+      showToast("Download failed. Please try again.", "error");
       setDownloadingId(null);
-      showToast(`WAV master loops downloaded successfully!`, "success");
-      
-      // trigger a browser download download
-      const link = document.createElement("a");
-      link.href = "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3";
-      link.setAttribute("download", `${beat.title}_WAV_MASTER.wav`);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    }, 2000);
+    }
   };
 
   // Handle settings update
@@ -137,15 +154,15 @@ export default function Dashboard() {
             My Purchases
           </h1>
           <p className="font-syne text-[13px] text-text-secondary mt-1">
-            {mockPurchased.length} Beats Purchased safely
+            {purchasedBeats.length} Beats Purchased safely
           </p>
         </div>
       </div>
 
       {/* Purchases List */}
       <div className="flex flex-col gap-4">
-        {mockPurchased.length > 0 ? (
-          mockPurchased.map((purch) => (
+        {purchasedBeats.length > 0 ? (
+          purchasedBeats.map((purch) => (
             <div 
               key={purch.id}
               className="bg-bg-surface border border-border-default rounded-lg p-4 flex flex-col sm:flex-row justify-between sm:items-center gap-4 hover:border-border-strong transition-colors shadow-sm"
@@ -206,6 +223,7 @@ export default function Dashboard() {
           </div>
         )}
       </div>
+
 
       {/* Account Settings Section */}
       <div className="border-t border-border-subtle pt-10 flex flex-col gap-5">

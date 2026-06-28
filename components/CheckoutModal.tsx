@@ -16,6 +16,7 @@ export default function CheckoutModal() {
     showToast,
     isProducer,
     cartItems,
+    clearCart,
   } = useStore();
 
   const { isSignedIn, user } = useUser();
@@ -119,20 +120,60 @@ export default function CheckoutModal() {
     setCheckoutStep(3);
   };
 
-  // Simulate payment processing step
-  const handlePaymentSimulate = () => {
+  // Trigger real checkout process
+  const handlePaymentReal = async () => {
     setPaymentProcessing(true);
-    showToast("Opening Paystack secure payment window...", "neutral");
+    showToast("Initializing secure transaction...", "neutral");
 
-    setTimeout(() => {
-      showToast("Paystack payment successful! Confirming your order...", "success");
-      
-      // Simulate database/webhook confirmation spinner delay
-      setTimeout(() => {
+    try {
+      const response = await fetch("/api/checkout/initialize", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          beatId: checkout.beat?.id,
+          licenseType: checkout.licenseType,
+          email: checkout.customerEmail,
+          name: checkout.customerName,
+          discountCode: checkout.discountCode,
+          createAccount: checkout.createAccount,
+          password: password,
+          isCart: checkout.isCart,
+          cartItems: items.map((item) => ({
+            beat: { id: item.beat.id },
+            licenseType: item.licenseType,
+          })),
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to initialize checkout.");
+      }
+
+      if (data.free) {
+        showToast("Giveaway order confirmed successfully!", "success");
         setPaymentProcessing(false);
-        completeCheckout();
-      }, 2000);
-    }, 2500);
+        updateCheckoutDetails({
+          step: 4,
+          orderRef: data.reference,
+        });
+        if (checkout.isCart) {
+          clearCart();
+        }
+      } else if (data.authorization_url) {
+        showToast("Redirecting to Paystack secure portal...", "success");
+        window.location.href = data.authorization_url;
+      } else {
+        throw new Error("Invalid response from checkout server.");
+      }
+    } catch (error: any) {
+      console.error("Checkout process error:", error);
+      showToast(error.message || "An error occurred during checkout.", "error");
+      setPaymentProcessing(false);
+    }
   };
 
   return (
@@ -410,10 +451,10 @@ export default function CheckoutModal() {
                     </button>
                   )}
                   <button
-                    onClick={handlePaymentSimulate}
-                    className="btn-primary h-11 flex-1 flex items-center justify-center gap-2 text-[12px] uppercase font-syne font-medium"
+                    onClick={handlePaymentReal}
+                    className="btn-primary h-11 flex-1 flex items-center justify-center gap-2 text-[12px] uppercase font-syne font-medium cursor-pointer"
                   >
-                    PAY WITH PAYSTACK SIMULATOR
+                    {finalPrice === 0 ? "CLAIM FOR FREE" : "PAY WITH PAYSTACK"}
                   </button>
                 </div>
               </>

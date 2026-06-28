@@ -237,3 +237,58 @@ export async function toggleBulkDiscountRuleActive(id: string, active: boolean) 
 
   revalidatePath("/admin/promotions/bulk-discounts");
 }
+
+export async function validateDiscountCodeAction(code: string) {
+  try {
+    const cleanCode = code.trim().toUpperCase();
+    const discount = await prisma.discountCode.findUnique({
+      where: { code: cleanCode },
+    });
+
+    if (!discount) {
+      return { success: false, error: "Invalid discount code" };
+    }
+
+    if (!discount.active) {
+      return { success: false, error: "Discount code is inactive" };
+    }
+
+    if (discount.expiresAt && new Date(discount.expiresAt) < new Date()) {
+      return { success: false, error: "Discount code has expired" };
+    }
+
+    if (discount.usageLimit !== null && discount.usageCount >= discount.usageLimit) {
+      return { success: false, error: "Discount code usage limit reached" };
+    }
+
+    return {
+      success: true,
+      discount: {
+        id: discount.id,
+        code: discount.code,
+        type: discount.type,
+        value: Number(discount.value),
+      },
+    };
+  } catch (error) {
+    console.error("Error validating discount code:", error);
+    return { success: false, error: "Failed to validate discount code" };
+  }
+}
+
+export async function getActiveBulkDiscountRules() {
+  try {
+    const rules = await prisma.bulkDiscountRule.findMany({
+      where: { active: true },
+      orderBy: { minQuantity: "desc" },
+    });
+    return rules.map((rule) => ({
+      ...rule,
+      discountPercent: Number(rule.discountPercent),
+    }));
+  } catch (error) {
+    console.error("Error fetching active bulk rules:", error);
+    return [];
+  }
+}
+
