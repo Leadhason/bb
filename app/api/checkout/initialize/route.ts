@@ -39,9 +39,9 @@ export async function POST(req: NextRequest) {
     const checkoutItems = isCart
       ? cartItems.map((item: any) => ({
           beatId: item.beat.id,
-          licenseType: item.licenseType.toUpperCase() as "NON_EXCLUSIVE" | "EXCLUSIVE",
+          licenseType: item.licenseType.replace("-", "_").toUpperCase() as "NON_EXCLUSIVE" | "EXCLUSIVE",
         }))
-      : [{ beatId, licenseType: licenseType.toUpperCase() as "NON_EXCLUSIVE" | "EXCLUSIVE" }];
+      : [{ beatId, licenseType: licenseType.replace("-", "_").toUpperCase() as "NON_EXCLUSIVE" | "EXCLUSIVE" }];
 
     for (const item of checkoutItems) {
       const beat = await prisma.beat.findUnique({

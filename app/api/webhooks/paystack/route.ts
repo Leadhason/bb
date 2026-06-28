@@ -98,6 +98,7 @@ export async function POST(req: NextRequest) {
         continue;
       }
 
+      const licenseTypeEnum = item.licenseType.replace("-", "_").toUpperCase() as "NON_EXCLUSIVE" | "EXCLUSIVE";
       const orderRef = "ORD-" + Math.floor(100000 + Math.random() * 900000);
       const amountUsd = Number(item.price);
 
@@ -106,7 +107,7 @@ export async function POST(req: NextRequest) {
           reference: orderRef,
           customerId: customer.id,
           beatId: item.beatId,
-          licenseType: item.licenseType,
+          licenseType: licenseTypeEnum,
           amountUsd: amountUsd,
           paystackReference: `${reference}-${item.beatId}`,
           linkExpiresAt: new Date(Date.now() + 48 * 60 * 60 * 1000), // 48 hours expiration
@@ -120,7 +121,7 @@ export async function POST(req: NextRequest) {
       createdOrders.push(order);
 
       // Handle business rules for Exclusives
-      if (item.licenseType === "EXCLUSIVE") {
+      if (licenseTypeEnum === "EXCLUSIVE") {
         await prisma.beat.update({
           where: { id: item.beatId },
           data: {
