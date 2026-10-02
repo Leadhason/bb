@@ -522,6 +522,8 @@ export function StoreProvider({ children, initialBeats = [] }: { children: React
     } else {
       setActiveBeat(beat);
       setIsPlaying(true);
+      // Track real preview play in background
+      fetch(`/api/beats/${beat.id}/preview`, { method: "POST" }).catch(() => {});
     }
     setIsPlayerOpen(true);
   }, [activeBeat?.id]);

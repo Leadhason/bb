@@ -21,17 +21,17 @@ This is not a generic dark-mode SaaS UI. It should feel like it belongs in the s
 Import both fonts from Google Fonts:
 
 ```html
-<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Roboto+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 ```
 
 | Role | Font | Weight | Size |
 |---|---|---|---|
-| Store name / hero headings | Syne | 700 | 24–48px |
-| Section headings | Syne | 600 | 18–22px |
-| Sub-headings / labels | Syne | 500 | 14–16px |
-| Body / UI text | Syne | 400 | 13–15px |
-| Order refs / codes | DM Mono | 400 | 12–13px |
-| Beat metadata (BPM, key) | DM Mono | 400 | 12–13px |
+| Store name / hero headings | Roboto | 700 | 24–48px |
+| Section headings | Roboto | 700 / 500 | 18–22px |
+| Sub-headings / labels | Roboto | 500 | 14–16px |
+| Body / UI text | Roboto | 400 | 13–15px |
+| Order refs / codes | Roboto Mono | 400 | 12–13px |
+| Beat metadata (BPM, key) | Roboto Mono | 400 | 12–13px |
 
 ### Type Scale
 

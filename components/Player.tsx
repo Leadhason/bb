@@ -405,7 +405,7 @@ export default function Player() {
         </div>
 
         {/* Right Side: Free Download & Checkout Controls */}
-        <div className="flex items-center gap-2.5 flex-shrink-0 relative">
+        <div className="flex items-center gap-4 shrink-0 relative">
           <button
             onClick={handleDownload}
             disabled={!activeBeat}
@@ -416,7 +416,7 @@ export default function Player() {
           </button>
 
           {/* Checkout Selector Group */}
-          <div ref={dropdownRef} className="relative flex items-center">
+          <div ref={dropdownRef} className="relative gap-2 flex items-center">
             {activeBeat?.exclusiveSold ? (
               <button
                 disabled

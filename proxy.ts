@@ -40,5 +40,10 @@ export default clerkMiddleware(async (auth, req) => {
 });
 
 export const config = {
-  matcher: ["/(admin|dashboard)(.*)"],
+  matcher: [
+    // Protect admin and customer dashboard pages
+    "/(admin|dashboard)(.*)",
+    // Process API routes so auth() detects clerkMiddleware
+    "/api/(.*)",
+  ],
 };

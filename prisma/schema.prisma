@@ -25,6 +25,7 @@ model Beat {
   exclusivePrice      Decimal
   exclusiveSold       Boolean  @default(false)
   published           Boolean  @default(true)
+  previewCount        Int      @default(0)
   createdAt           DateTime @default(now())
   orders              Order[]
 

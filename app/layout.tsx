@@ -1,23 +1,10 @@
 import type { Metadata } from "next";
-import { Syne, DM_Mono } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
 import Script from "next/script";
 import "./globals.css";
 import { StoreProvider } from "../context/StoreContext";
 import AppLayoutWrapper from "../components/AppLayoutWrapper";
 import ToastManager from "../components/ToastManager";
-
-const syne = Syne({
-  variable: "--font-syne",
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-});
-
-const dmMono = DM_Mono({
-  variable: "--font-dm-mono",
-  subsets: ["latin"],
-  weight: ["400", "500"],
-});
 
 export const metadata: Metadata = {
   title: "BlingsBeats",
@@ -33,10 +20,16 @@ export default function RootLayout({
     <ClerkProvider>
       <html
         lang="en"
-        className={`${syne.variable} ${dmMono.variable} h-full antialiased`}
+        className="h-full antialiased"
         suppressHydrationWarning
       >
         <head>
+          <link rel="preconnect" href="https://fonts.googleapis.com" />
+          <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+          <link
+            href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Roboto+Mono:wght@400;500;700&display=swap"
+            rel="stylesheet"
+          />
           <Script
             id="theme-script"
             strategy="beforeInteractive"
