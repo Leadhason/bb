@@ -34,6 +34,27 @@ export interface CartItem {
   licenseType: LicenseType;
 }
 
+export interface ActiveBulkDiscountRule {
+  id: string;
+  minQuantity: number;
+  discountPercent: number;
+  stackable: boolean;
+  active: boolean;
+}
+
+export interface CartTotals {
+  subtotal: number;
+  itemCount: number;
+  bulkPercent: number;
+  bulkDiscountAmount: number;
+  activeBulkRule: ActiveBulkDiscountRule | null;
+  nextBulkRule: ActiveBulkDiscountRule | null;
+  beatsNeeded: number;
+  promoDiscountAmount: number;
+  stackConflict: "bulk_won" | "code_won" | null;
+  total: number;
+}
+
 export interface CheckoutState {
   isOpen: boolean;
   beat: Beat | null;
@@ -42,6 +63,8 @@ export interface CheckoutState {
   step: 1 | 2 | 3 | 4; // 1: Confirmation, 2: Customer Details, 3: Payment, 4: Success
   discountCode: string;
   discountApplied: boolean;
+  discountType?: "PERCENTAGE" | "FIXED";
+  discountValue?: number;
   discountPercentage: number;
   discountError: string;
   customerName: string;
@@ -122,12 +145,13 @@ interface StoreContextType {
   openCheckout: (beat: Beat | null, licenseType?: LicenseType, isCart?: boolean) => void;
   closeCheckout: () => void;
   setCheckoutStep: (step: 1 | 2 | 3 | 4) => void;
-  applyDiscount: (code: string) => void;
+  applyDiscount: (code: string) => Promise<void>;
+  removeDiscount: () => void;
   updateCheckoutDetails: (fields: Partial<CheckoutState>) => void;
   resetCheckout: () => void;
   completeCheckout: () => void;
 
-  // Cart state
+  // Cart & Pricing state
   cartItems: CartItem[];
   addToCart: (beat: Beat, licenseType: LicenseType) => void;
   removeFromCart: (beatId: string, licenseType: LicenseType) => void;
@@ -135,6 +159,9 @@ interface StoreContextType {
   clearCart: () => void;
   isCartOpen: boolean;
   setIsCartOpen: (open: boolean) => void;
+  bulkDiscountRules: ActiveBulkDiscountRule[];
+  calculateCartTotals: (items?: CartItem[]) => CartTotals;
+  calculateSingleBeatTotals: (beat: Beat, licenseType: LicenseType) => CartTotals;
 
   // Toast notifications
   toasts: Toast[];
@@ -290,6 +317,28 @@ export function StoreProvider({ children, initialBeats = [] }: { children: React
     createAccount: false,
     orderRef: "",
   });
+
+  // Active bulk discount rules from database
+  const [bulkDiscountRules, setBulkDiscountRules] = useState<ActiveBulkDiscountRule[]>([]);
+
+  useEffect(() => {
+    let isMounted = true;
+    async function loadBulkRules() {
+      try {
+        const { getActiveBulkDiscountRules } = await import("../app/admin/promotions/actions");
+        const rules = await getActiveBulkDiscountRules();
+        if (isMounted && Array.isArray(rules)) {
+          setBulkDiscountRules(rules);
+        }
+      } catch (e) {
+        console.error("Failed to load active bulk discount rules:", e);
+      }
+    }
+    loadBulkRules();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   // Toasts state
   const [toasts, setToasts] = useState<Toast[]>([]);
@@ -673,21 +722,23 @@ export function StoreProvider({ children, initialBeats = [] }: { children: React
 
   // Checkout trigger helpers
   const openCheckout = (beat: Beat | null, licenseType: LicenseType = "non-exclusive", isCart = false) => {
-    setCheckout({
+    setCheckout((prev) => ({
       isOpen: true,
       beat,
       licenseType,
       isCart,
       step: 1,
-      discountCode: "",
-      discountApplied: false,
-      discountPercentage: 0,
+      discountCode: isCart ? prev.discountCode : "",
+      discountApplied: isCart ? prev.discountApplied : false,
+      discountType: isCart ? prev.discountType : undefined,
+      discountValue: isCart ? prev.discountValue : undefined,
+      discountPercentage: isCart ? prev.discountPercentage : 0,
       discountError: "",
-      customerName: "",
-      customerEmail: "",
+      customerName: prev.customerName || "",
+      customerEmail: prev.customerEmail || "",
       createAccount: false,
       orderRef: "",
-    });
+    }));
   };
 
   const closeCheckout = () => {
@@ -702,10 +753,30 @@ export function StoreProvider({ children, initialBeats = [] }: { children: React
     setCheckout((prev) => ({ ...prev, ...fields }));
   };
 
+  const removeDiscount = () => {
+    setCheckout((prev) => ({
+      ...prev,
+      discountCode: "",
+      discountApplied: false,
+      discountType: undefined,
+      discountValue: undefined,
+      discountPercentage: 0,
+      discountError: "",
+    }));
+    showToast("Discount code removed", "neutral");
+  };
+
   const applyDiscount = async (code: string) => {
     const cleanCode = code.trim().toUpperCase();
     if (!cleanCode) {
-      setCheckout((prev) => ({ ...prev, discountError: "", discountApplied: false, discountPercentage: 0 }));
+      setCheckout((prev) => ({
+        ...prev,
+        discountError: "Please enter a valid code",
+        discountApplied: false,
+        discountType: undefined,
+        discountValue: undefined,
+        discountPercentage: 0,
+      }));
       return;
     }
 
@@ -741,15 +812,24 @@ export function StoreProvider({ children, initialBeats = [] }: { children: React
           ...prev,
           discountCode: cleanCode,
           discountApplied: true,
+          discountType: discount.type,
+          discountValue: discount.value,
           discountPercentage: percentage,
           discountError: "",
         }));
-        showToast(`Promo code applied: ${percentage}% OFF`, "success");
+        showToast(
+          discount.type === "PERCENTAGE"
+            ? `Promo applied: ${discount.value}% OFF`
+            : `Promo applied: $${discount.value} OFF`,
+          "success"
+        );
       } else {
         setCheckout((prev) => ({
           ...prev,
           discountApplied: false,
           discountPercentage: 0,
+          discountType: undefined,
+          discountValue: undefined,
           discountError: res.error || "Invalid discount code",
         }));
         showToast(res.error || "Invalid discount code", "error");
@@ -760,10 +840,141 @@ export function StoreProvider({ children, initialBeats = [] }: { children: React
         ...prev,
         discountApplied: false,
         discountPercentage: 0,
+        discountType: undefined,
+        discountValue: undefined,
         discountError: "Validation failed",
       }));
       showToast("Validation failed", "error");
     }
+  };
+
+  const calculateCartTotals = (items: CartItem[] = cartItems): CartTotals => {
+    const subtotal = items.reduce((sum, item) => {
+      const price = item.licenseType === "non-exclusive"
+        ? Number(item.beat.nonExclusivePrice)
+        : Number(item.beat.exclusivePrice);
+      return sum + price;
+    }, 0);
+
+    const itemCount = items.length;
+
+    let promoDiscountAmount = 0;
+    if (checkout.discountApplied) {
+      if (checkout.discountType === "PERCENTAGE" && checkout.discountValue) {
+        promoDiscountAmount = (subtotal * checkout.discountValue) / 100;
+      } else if (checkout.discountType === "FIXED" && checkout.discountValue) {
+        promoDiscountAmount = Math.min(subtotal, checkout.discountValue);
+      } else {
+        promoDiscountAmount = (subtotal * checkout.discountPercentage) / 100;
+      }
+    }
+
+    const sortedRules = [...bulkDiscountRules]
+      .filter((r) => r.active)
+      .sort((a, b) => b.minQuantity - a.minQuantity);
+
+    const activeBulkRule = sortedRules.find((r) => r.minQuantity <= itemCount) || null;
+    const bulkPercent = activeBulkRule ? activeBulkRule.discountPercent : 0;
+    let bulkDiscountAmount = 0;
+    let stackConflict: "bulk_won" | "code_won" | null = null;
+
+    if (activeBulkRule) {
+      const potentialBulkDiscount = (subtotal * bulkPercent) / 100;
+
+      if (checkout.discountApplied && !activeBulkRule.stackable) {
+        if (potentialBulkDiscount > promoDiscountAmount) {
+          bulkDiscountAmount = potentialBulkDiscount;
+          promoDiscountAmount = 0;
+          stackConflict = "bulk_won";
+        } else {
+          bulkDiscountAmount = 0;
+          stackConflict = "code_won";
+        }
+      } else {
+        bulkDiscountAmount = potentialBulkDiscount;
+      }
+    }
+
+    const nextBulkRule = [...bulkDiscountRules]
+      .filter((r) => r.active && r.minQuantity > itemCount)
+      .sort((a, b) => a.minQuantity - b.minQuantity)[0] || null;
+
+    const beatsNeeded = nextBulkRule ? nextBulkRule.minQuantity - itemCount : 0;
+    const total = Math.max(0, subtotal - bulkDiscountAmount - promoDiscountAmount);
+
+    return {
+      subtotal,
+      itemCount,
+      bulkPercent,
+      bulkDiscountAmount,
+      activeBulkRule,
+      nextBulkRule,
+      beatsNeeded,
+      promoDiscountAmount,
+      stackConflict,
+      total,
+    };
+  };
+
+  const calculateSingleBeatTotals = (beat: Beat, licenseType: LicenseType): CartTotals => {
+    const price = licenseType === "non-exclusive"
+      ? Number(beat.nonExclusivePrice)
+      : Number(beat.exclusivePrice);
+
+    let promoDiscountAmount = 0;
+    if (checkout.discountApplied) {
+      if (checkout.discountType === "PERCENTAGE" && checkout.discountValue) {
+        promoDiscountAmount = (price * checkout.discountValue) / 100;
+      } else if (checkout.discountType === "FIXED" && checkout.discountValue) {
+        promoDiscountAmount = Math.min(price, checkout.discountValue);
+      } else {
+        promoDiscountAmount = (price * checkout.discountPercentage) / 100;
+      }
+    }
+
+    const sortedRules = [...bulkDiscountRules]
+      .filter((r) => r.active)
+      .sort((a, b) => b.minQuantity - a.minQuantity);
+    const activeBulkRule = sortedRules.find((r) => r.minQuantity <= 1) || null;
+    const bulkPercent = activeBulkRule ? activeBulkRule.discountPercent : 0;
+    let bulkDiscountAmount = 0;
+    let stackConflict: "bulk_won" | "code_won" | null = null;
+
+    if (activeBulkRule) {
+      const potentialBulk = (price * bulkPercent) / 100;
+      if (checkout.discountApplied && !activeBulkRule.stackable) {
+        if (potentialBulk > promoDiscountAmount) {
+          bulkDiscountAmount = potentialBulk;
+          promoDiscountAmount = 0;
+          stackConflict = "bulk_won";
+        } else {
+          bulkDiscountAmount = 0;
+          stackConflict = "code_won";
+        }
+      } else {
+        bulkDiscountAmount = potentialBulk;
+      }
+    }
+
+    const nextBulkRule = [...bulkDiscountRules]
+      .filter((r) => r.active && r.minQuantity > 1)
+      .sort((a, b) => a.minQuantity - b.minQuantity)[0] || null;
+
+    const beatsNeeded = nextBulkRule ? nextBulkRule.minQuantity - 1 : 0;
+    const total = Math.max(0, price - bulkDiscountAmount - promoDiscountAmount);
+
+    return {
+      subtotal: price,
+      itemCount: 1,
+      bulkPercent,
+      bulkDiscountAmount,
+      activeBulkRule,
+      nextBulkRule,
+      beatsNeeded,
+      promoDiscountAmount,
+      stackConflict,
+      total,
+    };
   };
 
 
@@ -908,11 +1119,12 @@ export function StoreProvider({ children, initialBeats = [] }: { children: React
         closeCheckout,
         setCheckoutStep,
         applyDiscount,
+        removeDiscount,
         updateCheckoutDetails,
         resetCheckout,
         completeCheckout,
 
-        // Cart state
+        // Cart & Pricing state
         cartItems,
         addToCart,
         removeFromCart,
@@ -920,6 +1132,9 @@ export function StoreProvider({ children, initialBeats = [] }: { children: React
         clearCart,
         isCartOpen,
         setIsCartOpen,
+        bulkDiscountRules,
+        calculateCartTotals,
+        calculateSingleBeatTotals,
 
         toasts,
         showToast,

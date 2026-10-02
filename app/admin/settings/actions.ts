@@ -5,18 +5,20 @@ import { revalidatePath } from "next/cache";
 
 export interface StoreSettings {
   id: string;
-  name: string;
-  bio: string;
-  profileImageUrl: string | null;
-  twitterUrl: string | null;
+  youtubeUrl: string | null;
   instagramUrl: string | null;
-  tiktokUrl: string | null;
-  discordUrl: string | null;
-  featuredBeatIds: string[];
+  contactEmail: string | null;
 }
 
 export async function getStoreSettings(): Promise<StoreSettings | null> {
-  let store = await prisma.store.findFirst();
+  let store = await prisma.store.findFirst({
+    select: {
+      id: true,
+      youtubeUrl: true,
+      instagramUrl: true,
+      contactEmail: true,
+    },
+  });
 
   // Create default store if none exists
   if (!store) {
@@ -24,12 +26,16 @@ export async function getStoreSettings(): Promise<StoreSettings | null> {
       data: {
         name: "My Beat Store",
         bio: "",
-        profileImageUrl: null,
-        twitterUrl: null,
+        youtubeUrl: null,
         instagramUrl: null,
-        tiktokUrl: null,
-        discordUrl: null,
+        contactEmail: null,
         featuredBeatIds: [],
+      },
+      select: {
+        id: true,
+        youtubeUrl: true,
+        instagramUrl: true,
+        contactEmail: true,
       },
     });
   }
@@ -41,36 +47,29 @@ export async function updateStoreSettings(data: Partial<StoreSettings>) {
   let store = await prisma.store.findFirst();
 
   if (!store) {
-    // Create if doesn't exist
     store = await prisma.store.create({
       data: {
-        name: data.name || "My Beat Store",
-        bio: data.bio || "",
-        profileImageUrl: data.profileImageUrl || null,
-        twitterUrl: data.twitterUrl || null,
+        name: "My Beat Store",
+        bio: "",
+        youtubeUrl: data.youtubeUrl || null,
         instagramUrl: data.instagramUrl || null,
-        tiktokUrl: data.tiktokUrl || null,
-        discordUrl: data.discordUrl || null,
-        featuredBeatIds: data.featuredBeatIds || [],
+        contactEmail: data.contactEmail || null,
+        featuredBeatIds: [],
       },
     });
   } else {
-    // Update existing
     store = await prisma.store.update({
       where: { id: store.id },
       data: {
-        name: data.name,
-        bio: data.bio,
-        profileImageUrl: data.profileImageUrl,
-        twitterUrl: data.twitterUrl,
+        youtubeUrl: data.youtubeUrl,
         instagramUrl: data.instagramUrl,
-        tiktokUrl: data.tiktokUrl,
-        discordUrl: data.discordUrl,
-        featuredBeatIds: data.featuredBeatIds,
+        contactEmail: data.contactEmail,
       },
     });
   }
 
   revalidatePath("/admin/settings");
+  revalidatePath("/");
+  revalidatePath("/contact");
   return store;
 }

@@ -86,8 +86,8 @@ export function DiscountCodeForm() {
         </h2>
 
         {error && (
-          <div className="p-4 bg-[var(--badge-danger-bg)] bg-opacity-20 border border-[var(--badge-danger-text)] rounded-md">
-            <p className="text-sm text-[var(--badge-danger-text)] font-medium">{error}</p>
+          <div className="p-4 bg-danger-bg border border-danger-text rounded-md">
+            <p className="text-sm text-danger-text font-medium">{error}</p>
           </div>
         )}
 
@@ -200,21 +200,21 @@ export function DiscountCodeForm() {
         </div>
 
         {/* Buttons */}
-        <div className="flex gap-3 pt-4">
+        <div className="flex gap-3 pt-4 border-t border-border-subtle">
+          <Link
+            href="/admin/promotions/discount-codes"
+            className="btn-secondary h-11 px-8 rounded-md font-medium text-sm flex items-center justify-center flex-1"
+          >
+            Cancel
+          </Link>
           <button
             type="submit"
             disabled={loading}
-            className="flex-1 bg-accent hover:bg-opacity-90 text-white font-syne font-medium text-sm py-2 rounded-md transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+            className="btn-primary h-11 px-8 rounded-md font-medium text-sm flex items-center justify-center gap-2 flex-1 disabled:opacity-50"
           >
             {loading && <Loader2 className="w-4 h-4 animate-spin" />}
             Create Discount Code
           </button>
-          <Link
-            href="/admin/promotions/discount-codes"
-            className="flex-1 bg-bg-elevated hover:bg-bg-hover border border-border-default text-text-primary font-syne font-medium text-sm py-2 rounded-md transition-colors text-center"
-          >
-            Cancel
-          </Link>
         </div>
       </form>
     </div>

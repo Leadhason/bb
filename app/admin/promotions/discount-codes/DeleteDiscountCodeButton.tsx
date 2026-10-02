@@ -26,18 +26,18 @@ export function DeleteDiscountCodeButton({ codeId }: DeleteDiscountCodeButtonPro
 
   if (showConfirm) {
     return (
-      <div className="flex gap-1">
+      <div className="flex gap-1.5 items-center">
         <button
           onClick={handleDelete}
           disabled={loading}
-          className="text-xs text-[var(--badge-danger-text)] hover:text-white hover:bg-[var(--badge-danger-bg)] px-2 py-1 rounded transition-colors font-syne font-medium disabled:opacity-50"
+          className="text-xs text-danger-text bg-danger-bg border border-danger-text/30 hover:border-danger-text px-2 py-0.5 rounded transition-colors font-syne font-medium disabled:opacity-50"
         >
           {loading ? <Loader2 className="w-3 h-3 animate-spin" /> : "Confirm"}
         </button>
         <button
           onClick={() => setShowConfirm(false)}
           disabled={loading}
-          className="text-xs text-text-secondary hover:text-text-primary px-2 py-1 rounded transition-colors font-syne font-medium disabled:opacity-50"
+          className="text-xs text-text-secondary hover:text-text-primary px-2 py-0.5 rounded transition-colors font-syne font-medium disabled:opacity-50"
         >
           Cancel
         </button>

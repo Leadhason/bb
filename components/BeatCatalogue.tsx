@@ -15,6 +15,7 @@ import {
   Music,
   SlidersHorizontal,
   ChevronDown,
+  ChevronUp,
   Loader
 } from "lucide-react";
 
@@ -24,6 +25,7 @@ export default function BeatCatalogue({ beats: initialBeats }: { beats: Beat[] }
   const [loading, setLoading] = useState(false);
   const [hasMore, setHasMore] = useState(initialBeats.length >= 12);
   const [isBottomSheetOpen, setIsBottomSheetOpen] = useState(false);
+  const [moodsExpanded, setMoodsExpanded] = useState(false);
   const sentinelRef = useRef<HTMLDivElement>(null);
 
   const {
@@ -211,17 +213,17 @@ export default function BeatCatalogue({ beats: initialBeats }: { beats: Beat[] }
   const genres = ["All genres", "UK Drill", "Trap", "Hip Hop"];
   const bpms = ["Any BPM", "60–90", "90–120", "120–140", "140–160", "160+"];
   const keys = ["Any key", "A Minor", "C Minor", "D# Minor", "E Minor", "F Minor", "G Minor"];
-  const moods = ["Dark", "Melodic", "Aggressive", "Chill", "Cinematic"];
+  const moods = Array.from(new Set(beats.flatMap(b => b.tags))).sort();
   const sorts = ["Newest", "Oldest", "Price: Low to High", "Price: High to Low"];
 
   return (
     <div className="w-full flex flex-col pt-4 animate-fadeIn">
       {/* Filter Bar */}
-      <div className="sticky top-[60px] z-30 bg-bg-base border-b border-border-subtle py-3 mb-6 flex flex-col gap-3">
+      <div className="sticky top-15 z-30 bg-bg-base border-b border-border-subtle py-3 mb-6 flex flex-col gap-3">
         {/* Top filter row - scrollable on mobile, wrapping on desktop */}
         <div className="flex items-center gap-2 overflow-x-auto lg:overflow-x-visible lg:flex-wrap whitespace-nowrap scrollbar-none pb-2 lg:pb-0 w-full">
           {/* Search box */}
-          <div className="relative flex-shrink-0 w-[200px] sm:w-[220px]">
+          <div className="relative gap-2 shrink-0 w-50 sm:w-55">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted pointer-events-none" />
             <input
               type="text"
@@ -233,7 +235,7 @@ export default function BeatCatalogue({ beats: initialBeats }: { beats: Beat[] }
           </div>
 
           {/* Genre select */}
-          <div className="relative flex-shrink-0 min-w-[110px]">
+          <div className="relative shrink-0 min-w-27.5">
             <select
               value={selectedGenre}
               onChange={(e) => setSelectedGenre(e.target.value)}
@@ -249,7 +251,7 @@ export default function BeatCatalogue({ beats: initialBeats }: { beats: Beat[] }
           {/* Mobile Filters Trigger (opens bottom sheet) */}
           <button
             onClick={() => setIsBottomSheetOpen(true)}
-            className={`md:hidden flex-shrink-0 btn-secondary h-9 px-3 text-[12px] uppercase font-syne flex items-center gap-1.5 bg-bg-surface cursor-pointer ${
+            className={`md:hidden shrink-0 btn-secondary h-9 px-3 text-[12px] uppercase font-syne flex items-center gap-1.5 bg-bg-surface cursor-pointer ${
               selectedBpm !== "Any BPM" || selectedKey !== "Any key" ? "border-text-primary text-text-primary" : ""
             }`}
           >
@@ -258,7 +260,7 @@ export default function BeatCatalogue({ beats: initialBeats }: { beats: Beat[] }
           </button>
 
           {/* BPM select (Desktop only) */}
-          <div className="relative flex-shrink-0 min-w-[110px] hidden md:block">
+          <div className="relative shrink-0 min-w-27.5 hidden md:block">
             <select
               value={selectedBpm}
               onChange={(e) => setSelectedBpm(e.target.value)}
@@ -272,7 +274,7 @@ export default function BeatCatalogue({ beats: initialBeats }: { beats: Beat[] }
           </div>
 
           {/* Key select (Desktop only) */}
-          <div className="relative flex-shrink-0 min-w-[110px] hidden md:block">
+          <div className="relative shrink-0 min-w-27.5 hidden md:block">
             <select
               value={selectedKey}
               onChange={(e) => setSelectedKey(e.target.value)}
@@ -286,7 +288,7 @@ export default function BeatCatalogue({ beats: initialBeats }: { beats: Beat[] }
           </div>
 
           {/* Sort select */}
-          <div className="relative flex-shrink-0 min-w-[130px]">
+          <div className="relative shrink-0 min-w-32.5">
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value)}
@@ -303,7 +305,7 @@ export default function BeatCatalogue({ beats: initialBeats }: { beats: Beat[] }
           {activeFilterCount > 0 && (
             <button
               onClick={clearFilters}
-              className="btn-ghost flex-shrink-0 h-9 text-[11px] font-syne uppercase text-text-muted hover:text-text-primary px-3 border border-dashed border-border-strong rounded-md flex items-center gap-1.5"
+              className="btn-ghost shrink-0 h-9 text-[11px] font-syne uppercase text-text-muted hover:text-text-primary px-3 border border-dashed border-border-strong rounded-md flex items-center gap-1.5"
             >
               <X className="w-3.5 h-3.5" />
               Clear [{activeFilterCount}]
@@ -314,10 +316,10 @@ export default function BeatCatalogue({ beats: initialBeats }: { beats: Beat[] }
           <div className="hidden lg:flex flex-1" />
 
           {/* Grid/List toggles (Desktop only) */}
-          <div className="hidden md:flex border border-border-strong rounded-md overflow-hidden bg-bg-surface p-0.5 flex-shrink-0">
+          <div className="hidden md:flex border border-border-strong rounded-md overflow-hidden bg-bg-surface p-0.5 shrink-0">
             <button
               onClick={() => setView("list")}
-              className={`p-1.5 rounded-[var(--radius-sm)] transition-colors ${
+              className={`p-1.5 rounded-sm transition-colors ${
                 view === "list" 
                   ? "bg-bg-elevated text-text-primary border border-border-default" 
                   : "text-text-muted hover:text-text-secondary"
@@ -328,7 +330,7 @@ export default function BeatCatalogue({ beats: initialBeats }: { beats: Beat[] }
             </button>
             <button
               onClick={() => setView("grid")}
-              className={`p-1.5 rounded-[var(--radius-sm)] transition-colors ${
+              className={`p-1.5 rounded-sm transition-colors ${
                 view === "grid" 
                   ? "bg-bg-elevated text-text-primary border border-border-default" 
                   : "text-text-muted hover:text-text-secondary"
@@ -413,25 +415,40 @@ export default function BeatCatalogue({ beats: initialBeats }: { beats: Beat[] }
           </div>
         )}
 
-        {/* Mood pills multi-select */}
-        <div className="flex flex-wrap items-center gap-1.5 pt-1.5 border-t border-border-subtle/50">
-          <span className="font-mono text-[10px] text-text-muted mr-1 uppercase tracking-wider">Mood Tags:</span>
-          {moods.map((mood) => {
-            const isActive = selectedMoods.includes(mood);
-            return (
-              <button
-                key={mood}
-                onClick={() => toggleMood(mood)}
-                className={`text-[11px] px-3 py-1 rounded-[var(--radius-full)] font-syne transition-all cursor-pointer ${
-                  isActive
-                    ? "bg-text-primary text-bg-base border border-text-primary font-medium"
-                    : "bg-bg-surface border border-border-default text-text-secondary hover:border-border-focus"
-                }`}
-              >
-                {mood}
-              </button>
-            );
-          })}
+        {/* Mood pills multi-select - collapsible */}
+        <div className="pt-1.5 border-t border-border-subtle/50">
+          <div
+            className={`flex flex-wrap items-center gap-1.5 overflow-hidden transition-[max-height] duration-300 ease-in-out ${
+              moodsExpanded ? "max-h-125" : "max-h-7.5"
+            }`}
+          >
+            <span className="font-mono text-[10px] text-text-muted mr-0.5 uppercase tracking-wider">Mood Tags:</span>
+            {moods.map((mood) => {
+              const isActive = selectedMoods.includes(mood);
+              return (
+                <button
+                  key={mood}
+                  onClick={() => toggleMood(mood)}
+                  className={`text-[11px] px-3 py-1 rounded-[--radius-full] font-syne transition-all cursor-pointer ${
+                    isActive
+                      ? "bg-text-primary text-bg-base border border-text-primary font-medium"
+                      : "bg-bg-surface border border-border-default text-text-secondary hover:border-border-focus"
+                  }`}
+                >
+                  {mood.charAt(0).toUpperCase() + mood.slice(1)}
+                </button>
+              );
+            })}
+          </div>
+          {moods.length > 8 && (
+            <button
+              onClick={() => setMoodsExpanded(!moodsExpanded)}
+              className="flex items-center gap-1 mt-1.5 text-[11px] px-3 py-1 rounded-[--radius-full] font-syne cursor-pointer transition-all border border-dashed border-border-focus text-text-muted hover:text-text-secondary hover:border-text-secondary"
+            >
+              {moodsExpanded ? "Show less" : "Show all tags"}
+              {moodsExpanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+            </button>
+          )}
         </div>
       </div>
 
@@ -456,7 +473,7 @@ export default function BeatCatalogue({ beats: initialBeats }: { beats: Beat[] }
 
       {/* RENDER LIST VIEW */}
       {view === "list" && sortedBeats.length > 0 && (
-        <div className="w-full flex flex-col border border-border-default rounded-xl overflow-hidden bg-bg-surface shadow-sm">
+        <div className="w-full flex flex-col border border-border-default rounded-xl overflow-hidden bg-bg-surface">
           {/* Table Header */}
           <div className="hidden md:grid grid-cols-[36px_44px_1fr_80px_70px_110px_130px] gap-4 items-center bg-bg-elevated border-b border-border-default px-5 py-3 select-none">
             <div></div>
@@ -566,7 +583,9 @@ export default function BeatCatalogue({ beats: initialBeats }: { beats: Beat[] }
                       <>
                         <div className="flex items-center gap-1.5">
                           <span className="text-[9px] text-text-muted font-mono uppercase">Non-excl:</span>
-                          <span className="font-syne font-semibold text-[12px] text-text-primary">${beat.nonExclusivePrice.toFixed(2)}</span>
+                          <span className={`font-syne font-semibold text-[12px] ${beat.nonExclusivePrice === 0 ? "text-success-text font-bold" : "text-text-primary"}`}>
+                            {beat.nonExclusivePrice === 0 ? "FREE" : `$${beat.nonExclusivePrice.toFixed(2)}`}
+                          </span>
                         </div>
                         {beat.nonExclusiveCap && (beat.nonExclusiveSold ?? 0) >= (beat.nonExclusiveCap * 0.8) ? (
                           <span className="badge badge-warning text-[9px] mt-1 w-fit leading-none px-1.5 py-0.5">
@@ -589,7 +608,9 @@ export default function BeatCatalogue({ beats: initialBeats }: { beats: Beat[] }
                     {!beat.exclusiveSold && (
                       <div className="flex flex-col text-right md:hidden mr-1">
                         <span className="text-[9px] text-text-muted font-mono uppercase leading-none">Price</span>
-                        <span className="font-syne font-bold text-[12px] text-text-primary">${beat.nonExclusivePrice.toFixed(2)}</span>
+                        <span className={`font-syne font-bold text-[12px] ${beat.nonExclusivePrice === 0 ? "text-success-text" : "text-text-primary"}`}>
+                          {beat.nonExclusivePrice === 0 ? "FREE" : `$${beat.nonExclusivePrice.toFixed(2)}`}
+                        </span>
                       </div>
                     )}
                     <button
@@ -701,7 +722,9 @@ export default function BeatCatalogue({ beats: initialBeats }: { beats: Beat[] }
                         <>
                           <div>
                             <span className="text-[9px] text-text-muted font-mono uppercase block">Non-exclusive</span>
-                            <span className="font-syne font-bold text-[16px] text-text-primary">${beat.nonExclusivePrice.toFixed(2)}</span>
+                            <span className={`font-syne font-bold text-[16px] ${beat.nonExclusivePrice === 0 ? "text-success-text" : "text-text-primary"}`}>
+                              {beat.nonExclusivePrice === 0 ? "FREE" : `$${beat.nonExclusivePrice.toFixed(2)}`}
+                            </span>
                           </div>
                           {beat.exclusiveEnabled && (
                             <div className="text-right">

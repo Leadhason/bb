@@ -1,21 +1,9 @@
 import { getStoreSettings } from "./actions";
 import StoreSettingsForm from "./StoreSettingsForm";
 import { Breadcrumb } from "@/components/Breadcrumb";
-import prisma from "@/lib/prisma";
 
 export default async function SettingsPage() {
   const storeSettings = await getStoreSettings();
-  
-  // Fetch all beats for featured beats selector
-  const beats = await prisma.beat.findMany({
-    select: {
-      id: true,
-      title: true,
-    },
-    orderBy: {
-      title: "asc",
-    },
-  });
 
   return (
     <div className="space-y-6">
@@ -31,13 +19,13 @@ export default async function SettingsPage() {
           Storefront Settings
         </h1>
         <p className="text-text-muted">
-          Customize your store information and social links
+          Manage your social links
         </p>
       </div>
 
       <div className="bg-surface rounded-lg border border-border-default p-6">
         {storeSettings ? (
-          <StoreSettingsForm initialData={storeSettings} beats={beats} />
+          <StoreSettingsForm initialData={storeSettings} />
         ) : (
           <p className="text-text-muted">Unable to load settings</p>
         )}

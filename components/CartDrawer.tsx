@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useStore, LicenseType, Beat } from "../context/StoreContext";
-import { X, Trash2, ShoppingBag, Disc, ArrowRight, Music } from "lucide-react";
+import { X, Trash2, ShoppingBag, Disc, ArrowRight, Music, Tag, Check, Loader2 } from "lucide-react";
 
 export default function CartDrawer() {
   const {
@@ -13,7 +13,14 @@ export default function CartDrawer() {
     setIsCartOpen,
     openCheckout,
     isProducer,
+    calculateCartTotals,
+    checkout,
+    applyDiscount,
+    removeDiscount,
   } = useStore();
+
+  const [promoInput, setPromoInput] = useState("");
+  const [isApplyingPromo, setIsApplyingPromo] = useState(false);
 
   // Prevent background scrolling when cart drawer is open
   useEffect(() => {
@@ -29,26 +36,28 @@ export default function CartDrawer() {
 
   if (!isCartOpen) return null;
 
-  // Calculate pricing
-  const subtotal = cartItems.reduce((sum, item) => {
-    const price =
-      item.licenseType === "non-exclusive"
-        ? item.beat.nonExclusivePrice
-        : item.beat.exclusivePrice;
-    return sum + price;
-  }, 0);
+  // Real promotion totals calculation
+  const {
+    subtotal,
+    itemCount,
+    bulkPercent,
+    bulkDiscountAmount,
+    activeBulkRule,
+    nextBulkRule,
+    beatsNeeded,
+    promoDiscountAmount,
+    stackConflict,
+    total,
+  } = calculateCartTotals();
 
-  // Bulk discount calculation
-  const itemCount = cartItems.length;
-  let bulkDiscountPercentage = 0;
-  if (itemCount === 2) {
-    bulkDiscountPercentage = 10;
-  } else if (itemCount >= 3) {
-    bulkDiscountPercentage = 20;
-  }
-
-  const bulkDiscountAmount = (subtotal * bulkDiscountPercentage) / 100;
-  const total = subtotal - bulkDiscountAmount;
+  const handleApplyPromo = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!promoInput.trim()) return;
+    setIsApplyingPromo(true);
+    await applyDiscount(promoInput);
+    setIsApplyingPromo(false);
+    setPromoInput("");
+  };
 
   const handleCheckoutClick = () => {
     setIsCartOpen(false);
@@ -175,22 +184,74 @@ export default function CartDrawer() {
         {/* Drawer Footer */}
         {itemCount > 0 && (
           <div className="border-t border-border-default bg-bg-surface px-6 py-5 flex flex-col gap-4">
-            {/* Promo / Bulk Discount Banner */}
-            <div className="bg-bg-elevated border border-border-subtle rounded-lg p-3 text-[11px] leading-normal text-text-secondary">
-              {itemCount === 1 ? (
-                <div className="flex justify-between items-center">
-                  <span>Buy 2 beats: <strong>10% off</strong></span>
-                  <span className="text-text-muted">Add 1 more beat</span>
-                </div>
-              ) : itemCount === 2 ? (
-                <div className="flex justify-between items-center text-success-text font-medium">
-                  <span>Bulk Discount Applied: 10% OFF</span>
-                  <span>Add 1 more to get 20%!</span>
+            {/* Promo / Bulk Discount Dynamic Banner */}
+            {(activeBulkRule || nextBulkRule) && (
+              <div className="bg-bg-elevated border border-border-subtle rounded-lg p-3 text-[11px] leading-normal text-text-secondary">
+                {activeBulkRule ? (
+                  nextBulkRule ? (
+                    <div className="flex justify-between items-center text-success-text font-medium">
+                      <span>Bulk Discount Applied: {bulkPercent}% OFF</span>
+                      <span className="text-accent">
+                        Add {beatsNeeded} more to get {nextBulkRule.discountPercent}% OFF!
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="text-success-text font-medium">
+                      Bulk Discount Applied: {bulkPercent}% OFF! (Maximum Tier)
+                    </div>
+                  )
+                ) : nextBulkRule ? (
+                  <div className="flex justify-between items-center">
+                    <span>
+                      Buy {nextBulkRule.minQuantity}+ beats: <strong>{nextBulkRule.discountPercent}% OFF</strong>
+                    </span>
+                    <span className="text-accent font-medium">
+                      Add {beatsNeeded} more {beatsNeeded === 1 ? "beat" : "beats"}
+                    </span>
+                  </div>
+                ) : null}
+              </div>
+            )}
+
+            {/* Promo Code Input or Applied Badge */}
+            <div className="pt-1 border-t border-border-subtle/50">
+              {checkout.discountApplied ? (
+                <div className="flex items-center justify-between bg-bg-elevated border border-accent/40 rounded-lg px-3 py-2 text-xs">
+                  <div className="flex items-center gap-2 text-text-primary">
+                    <Tag className="w-3.5 h-3.5 text-accent" />
+                    <span className="font-mono font-bold tracking-wider">{checkout.discountCode}</span>
+                    <span className="text-success-text font-medium">
+                      ({checkout.discountPercentage}% OFF)
+                    </span>
+                  </div>
+                  <button
+                    onClick={removeDiscount}
+                    className="text-text-muted hover:text-danger-text p-1 transition-colors cursor-pointer"
+                    title="Remove coupon"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
                 </div>
               ) : (
-                <div className="text-success-text font-medium">
-                  Bulk Discount Applied: 20% OFF! (Maximum Tier)
-                </div>
+                <form onSubmit={handleApplyPromo} className="flex gap-2">
+                  <div className="relative flex-1">
+                    <Tag className="w-3.5 h-3.5 text-text-muted absolute left-3 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="text"
+                      placeholder="Promo code"
+                      value={promoInput}
+                      onChange={(e) => setPromoInput(e.target.value)}
+                      className="w-full bg-bg-elevated border border-border-strong rounded-md h-8 pl-8 pr-2 font-mono text-xs uppercase placeholder:normal-case placeholder-text-muted focus:border-accent focus:outline-none text-text-primary"
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={isApplyingPromo || !promoInput.trim()}
+                    className="btn-secondary h-8 px-3 text-xs font-syne uppercase font-medium disabled:opacity-40 cursor-pointer flex items-center gap-1"
+                  >
+                    {isApplyingPromo ? <Loader2 className="w-3 h-3 animate-spin" /> : "Apply"}
+                  </button>
+                </form>
               )}
             </div>
 
@@ -201,11 +262,30 @@ export default function CartDrawer() {
                 <span className="font-mono">${subtotal.toFixed(2)}</span>
               </div>
 
-              {bulkDiscountPercentage > 0 && (
+              {bulkDiscountAmount > 0 && (
                 <div className="flex justify-between items-center text-[12px] text-success-text font-medium">
-                  <span>Bulk Discount (-{bulkDiscountPercentage}%)</span>
+                  <span>Bulk Discount (-{bulkPercent}%)</span>
                   <span className="font-mono">-${bulkDiscountAmount.toFixed(2)}</span>
                 </div>
+              )}
+
+              {promoDiscountAmount > 0 && (
+                <div className="flex justify-between items-center text-[12px] text-success-text font-medium">
+                  <span>Promo Code ({checkout.discountCode})</span>
+                  <span className="font-mono">-${promoDiscountAmount.toFixed(2)}</span>
+                </div>
+              )}
+
+              {stackConflict === "bulk_won" && (
+                <p className="text-[10px] text-text-muted italic text-right">
+                  Bulk discount savings exceed promo code (non-stackable)
+                </p>
+              )}
+
+              {stackConflict === "code_won" && (
+                <p className="text-[10px] text-text-muted italic text-right">
+                  Promo code savings exceed bulk discount (non-stackable)
+                </p>
               )}
 
               <div className="flex justify-between items-center text-[14px] text-text-primary font-bold pt-2 border-t border-dashed border-border-subtle">

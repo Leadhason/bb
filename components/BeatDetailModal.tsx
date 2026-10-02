@@ -414,7 +414,11 @@ export default function BeatDetailModal() {
                   </div>
                   <div>
                     <div className="font-syne font-bold text-[20px] text-text-primary mb-2">
-                      ${detailModalBeat.nonExclusivePrice.toFixed(2)}
+                      {detailModalBeat.nonExclusivePrice === 0 ? (
+                        <span className="text-success-text">FREE</span>
+                      ) : (
+                        `$${detailModalBeat.nonExclusivePrice.toFixed(2)}`
+                      )}
                     </div>
                     <button 
                       onClick={(e) => {

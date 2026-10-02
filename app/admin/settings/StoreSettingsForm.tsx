@@ -5,51 +5,29 @@ import { updateStoreSettings, StoreSettings } from "./actions";
 
 interface StoreSettingsFormProps {
   initialData: StoreSettings;
-  beats: Array<{ id: string; title: string }>;
 }
 
 export default function StoreSettingsForm({
   initialData,
-  beats,
 }: StoreSettingsFormProps) {
   const [formData, setFormData] = useState({
-    name: initialData.name,
-    bio: initialData.bio,
-    profileImageUrl: initialData.profileImageUrl || "",
-    twitterUrl: initialData.twitterUrl || "",
+    youtubeUrl: initialData.youtubeUrl || "",
     instagramUrl: initialData.instagramUrl || "",
-    tiktokUrl: initialData.tiktokUrl || "",
-    discordUrl: initialData.discordUrl || "",
-    featuredBeatIds: initialData.featuredBeatIds,
+    contactEmail: initialData.contactEmail || "",
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
 
   const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
+    e: React.ChangeEvent<HTMLInputElement>
   ) => {
-    const { name, value, type } = e.target;
+    const { name, value } = e.target;
 
-    if (type === "checkbox") {
-      const checkbox = e.target as HTMLInputElement;
-      if (checkbox.checked) {
-        setFormData({
-          ...formData,
-          featuredBeatIds: [...formData.featuredBeatIds, value],
-        });
-      } else {
-        setFormData({
-          ...formData,
-          featuredBeatIds: formData.featuredBeatIds.filter((id) => id !== value),
-        });
-      }
-    } else {
-      setFormData({
-        ...formData,
-        [name]: value,
-      });
-    }
+    setFormData({
+      ...formData,
+      [name]: value,
+    });
 
     if (errors[name]) {
       setErrors({
@@ -57,33 +35,6 @@ export default function StoreSettingsForm({
         [name]: "",
       });
     }
-  };
-
-  const validateForm = () => {
-    const newErrors: Record<string, string> = {};
-
-    if (!formData.name.trim()) {
-      newErrors.name = "Store name is required";
-    }
-
-    if (formData.twitterUrl && !isValidUrl(formData.twitterUrl)) {
-      newErrors.twitterUrl = "Invalid Twitter URL";
-    }
-
-    if (formData.instagramUrl && !isValidUrl(formData.instagramUrl)) {
-      newErrors.instagramUrl = "Invalid Instagram URL";
-    }
-
-    if (formData.tiktokUrl && !isValidUrl(formData.tiktokUrl)) {
-      newErrors.tiktokUrl = "Invalid TikTok URL";
-    }
-
-    if (formData.discordUrl && !isValidUrl(formData.discordUrl)) {
-      newErrors.discordUrl = "Invalid Discord URL";
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
   };
 
   const isValidUrl = (string: string) => {
@@ -95,8 +46,36 @@ export default function StoreSettingsForm({
     }
   };
 
+  const isValidEmail = (email: string) => {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  };
+
+  const validateForm = () => {
+    const newErrors: Record<string, string> = {};
+
+    if (formData.youtubeUrl && !isValidUrl(formData.youtubeUrl)) {
+      newErrors.youtubeUrl = "Invalid YouTube URL";
+    }
+
+    if (formData.instagramUrl && !isValidUrl(formData.instagramUrl)) {
+      newErrors.instagramUrl = "Invalid Instagram URL";
+    }
+
+    if (formData.contactEmail && !isValidEmail(formData.contactEmail)) {
+      newErrors.contactEmail = "Invalid email address";
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const [saveSuccess, setSaveSuccess] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    setSaveSuccess(false);
+    setSaveError(null);
 
     if (!validateForm()) {
       return;
@@ -106,10 +85,11 @@ export default function StoreSettingsForm({
 
     try {
       await updateStoreSettings(formData);
-      alert("Settings updated successfully!");
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 4000);
     } catch (error) {
       console.error("Failed to update settings:", error);
-      alert("Failed to update settings");
+      setSaveError("Failed to update settings. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -117,88 +97,41 @@ export default function StoreSettingsForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      {/* Store Name */}
-      <div>
-        <label htmlFor="name" className="block text-sm font-medium mb-2">
-          Store Name *
-        </label>
-        <input
-          type="text"
-          id="name"
-          name="name"
-          value={formData.name}
-          onChange={handleChange}
-          placeholder="My Beat Store"
-          className={`w-full px-4 py-2 border rounded-lg bg-surface text-text-primary placeholder-text-muted ${
-            errors.name ? "border-red-500" : "border-border-default"
-          }`}
-        />
-        {errors.name && (
-          <p className="text-sm text-red-500 mt-1">{errors.name}</p>
-        )}
-      </div>
+      {saveSuccess && (
+        <div className="p-3.5 bg-emerald-500/10 border border-emerald-500/30 rounded-lg text-emerald-400 text-sm flex items-center gap-2">
+          <span className="font-semibold">✓</span> Settings updated and synced with the storefront!
+        </div>
+      )}
 
-      {/* Bio */}
-      <div>
-        <label htmlFor="bio" className="block text-sm font-medium mb-2">
-          Producer Bio
-        </label>
-        <textarea
-          id="bio"
-          name="bio"
-          value={formData.bio}
-          onChange={handleChange}
-          placeholder="Tell customers about yourself and your music..."
-          rows={4}
-          className="w-full px-4 py-2 border border-border-default rounded-lg bg-surface text-text-primary placeholder-text-muted"
-        />
-        <p className="text-xs text-text-muted mt-1">
-          {formData.bio.length}/500 characters
-        </p>
-      </div>
+      {saveError && (
+        <div className="p-3.5 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400 text-sm">
+          {saveError}
+        </div>
+      )}
 
-      {/* Profile Image URL */}
+      {/* Social Links & Contact */}
       <div>
-        <label htmlFor="profileImageUrl" className="block text-sm font-medium mb-2">
-          Profile Image URL
-        </label>
-        <input
-          type="text"
-          id="profileImageUrl"
-          name="profileImageUrl"
-          value={formData.profileImageUrl}
-          onChange={handleChange}
-          placeholder="https://example.com/image.jpg"
-          className="w-full px-4 py-2 border border-border-default rounded-lg bg-surface text-text-primary placeholder-text-muted"
-        />
-        <p className="text-xs text-text-muted mt-1">
-          Upload to Supabase first, then paste URL here
-        </p>
-      </div>
-
-      {/* Social Links */}
-      <div className="border-t border-border-subtle pt-6">
-        <h3 className="font-semibold text-text-primary mb-4">Social Links</h3>
+        <h3 className="font-semibold text-text-primary mb-4">Social Links & Contact</h3>
 
         <div className="space-y-4">
-          {/* Twitter */}
+          {/* YouTube */}
           <div>
-            <label htmlFor="twitterUrl" className="block text-sm font-medium mb-2">
-              Twitter/X URL
+            <label htmlFor="youtubeUrl" className="block text-sm font-medium mb-2">
+              YouTube URL
             </label>
             <input
               type="text"
-              id="twitterUrl"
-              name="twitterUrl"
-              value={formData.twitterUrl}
+              id="youtubeUrl"
+              name="youtubeUrl"
+              value={formData.youtubeUrl}
               onChange={handleChange}
-              placeholder="https://twitter.com/username"
+              placeholder="https://youtube.com/@channel"
               className={`w-full px-4 py-2 border rounded-lg bg-surface text-text-primary placeholder-text-muted ${
-                errors.twitterUrl ? "border-red-500" : "border-border-default"
+                errors.youtubeUrl ? "border-red-500" : "border-border-default"
               }`}
             />
-            {errors.twitterUrl && (
-              <p className="text-sm text-red-500 mt-1">{errors.twitterUrl}</p>
+            {errors.youtubeUrl && (
+              <p className="text-sm text-red-500 mt-1">{errors.youtubeUrl}</p>
             )}
           </div>
 
@@ -223,80 +156,27 @@ export default function StoreSettingsForm({
             )}
           </div>
 
-          {/* TikTok */}
+          {/* Contact Email */}
           <div>
-            <label htmlFor="tiktokUrl" className="block text-sm font-medium mb-2">
-              TikTok URL
+            <label htmlFor="contactEmail" className="block text-sm font-medium mb-2">
+              Contact Email
             </label>
             <input
-              type="text"
-              id="tiktokUrl"
-              name="tiktokUrl"
-              value={formData.tiktokUrl}
+              type="email"
+              id="contactEmail"
+              name="contactEmail"
+              value={formData.contactEmail}
               onChange={handleChange}
-              placeholder="https://tiktok.com/@username"
+              placeholder="support@example.com"
               className={`w-full px-4 py-2 border rounded-lg bg-surface text-text-primary placeholder-text-muted ${
-                errors.tiktokUrl ? "border-red-500" : "border-border-default"
+                errors.contactEmail ? "border-red-500" : "border-border-default"
               }`}
             />
-            {errors.tiktokUrl && (
-              <p className="text-sm text-red-500 mt-1">{errors.tiktokUrl}</p>
-            )}
-          </div>
-
-          {/* Discord */}
-          <div>
-            <label htmlFor="discordUrl" className="block text-sm font-medium mb-2">
-              Discord URL
-            </label>
-            <input
-              type="text"
-              id="discordUrl"
-              name="discordUrl"
-              value={formData.discordUrl}
-              onChange={handleChange}
-              placeholder="https://discord.gg/invitecode"
-              className={`w-full px-4 py-2 border rounded-lg bg-surface text-text-primary placeholder-text-muted ${
-                errors.discordUrl ? "border-red-500" : "border-border-default"
-              }`}
-            />
-            {errors.discordUrl && (
-              <p className="text-sm text-red-500 mt-1">{errors.discordUrl}</p>
+            {errors.contactEmail && (
+              <p className="text-sm text-red-500 mt-1">{errors.contactEmail}</p>
             )}
           </div>
         </div>
-      </div>
-
-      {/* Featured Beats */}
-      <div className="border-t border-border-subtle pt-6">
-        <h3 className="font-semibold text-text-primary mb-4">
-          Featured Beats (Select up to 5)
-        </h3>
-
-        <div className="grid grid-cols-2 gap-3 max-h-64 overflow-y-auto">
-          {beats.map((beat) => (
-            <label key={beat.id} className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                name="featuredBeatIds"
-                value={beat.id}
-                checked={formData.featuredBeatIds.includes(beat.id)}
-                onChange={handleChange}
-                disabled={
-                  formData.featuredBeatIds.length >= 5 &&
-                  !formData.featuredBeatIds.includes(beat.id)
-                }
-                className="w-4 h-4 rounded accent-accent"
-              />
-              <span className="text-sm text-text-primary truncate">
-                {beat.title}
-              </span>
-            </label>
-          ))}
-        </div>
-        <p className="text-xs text-text-muted mt-2">
-          {formData.featuredBeatIds.length}/5 selected
-        </p>
       </div>
 
       {/* Submit Button */}

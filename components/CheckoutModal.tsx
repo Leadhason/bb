@@ -17,11 +17,15 @@ export default function CheckoutModal() {
     isProducer,
     cartItems,
     clearCart,
+    calculateCartTotals,
+    calculateSingleBeatTotals,
+    removeDiscount,
   } = useStore();
 
   const { isSignedIn, user } = useUser();
   
   const [promoCode, setPromoCode] = useState("");
+  const [isApplyingPromo, setIsApplyingPromo] = useState(false);
   const [password, setPassword] = useState("");
   const [paymentProcessing, setPaymentProcessing] = useState(false);
 
@@ -68,32 +72,39 @@ export default function CheckoutModal() {
     return sum + price;
   }, 0);
 
-  // Calculate discount and total
-  const discountAmount = checkout.discountApplied ? (basePrice * checkout.discountPercentage) / 100 : 0;
+  // Real promotion totals calculation from database rules
+  const totals = isCart
+    ? calculateCartTotals(items)
+    : checkout.beat
+    ? calculateSingleBeatTotals(checkout.beat, checkout.licenseType)
+    : {
+        subtotal: basePrice,
+        itemCount: 1,
+        bulkPercent: 0,
+        bulkDiscountAmount: 0,
+        activeBulkRule: null,
+        nextBulkRule: null,
+        beatsNeeded: 0,
+        promoDiscountAmount: 0,
+        stackConflict: null,
+        total: basePrice,
+      };
 
-  // Bulk discounts simulation:
-  // 10% for 2 items in cart, 20% for 3+ items in cart
-  // 5% for single exclusive beat if nonExclusiveSold > 5
-  let bulkDiscountPercentage = 0;
-  if (isCart) {
-    if (items.length === 2) {
-      bulkDiscountPercentage = 10;
-    } else if (items.length >= 3) {
-      bulkDiscountPercentage = 20;
-    }
-  } else if (checkout.licenseType === "exclusive" && checkout.beat && (checkout.beat.nonExclusiveSold ?? 0) > 5) {
-    bulkDiscountPercentage = 5;
-  }
-
-  const isBulkDiscount = bulkDiscountPercentage > 0;
-  const bulkDiscountAmount = (basePrice * bulkDiscountPercentage) / 100;
-
-  const finalPrice = Math.max(0, basePrice - discountAmount - bulkDiscountAmount);
+  const discountAmount = totals.promoDiscountAmount;
+  const isBulkDiscount = totals.bulkDiscountAmount > 0;
+  const bulkDiscountPercentage = totals.bulkPercent;
+  const bulkDiscountAmount = totals.bulkDiscountAmount;
+  const finalPrice = totals.total;
+  const stackConflict = totals.stackConflict;
 
   // Handle promo code submit
-  const handlePromoApply = (e: React.FormEvent) => {
+  const handlePromoApply = async (e: React.FormEvent) => {
     e.preventDefault();
-    applyDiscount(promoCode);
+    if (!promoCode.trim()) return;
+    setIsApplyingPromo(true);
+    await applyDiscount(promoCode);
+    setIsApplyingPromo(false);
+    setPromoCode("");
   };
 
   // Step 1 check
@@ -249,42 +260,60 @@ export default function CheckoutModal() {
             )}
 
             {/* Discount Code Form */}
-            <form onSubmit={handlePromoApply} className="mb-6">
+            <div className="mb-6">
               <label className="label">Promo Code</label>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  placeholder="e.g. DRILL20, FREEBEAT"
-                  value={promoCode}
-                  onChange={(e) => setPromoCode(e.target.value)}
-                  className={`input flex-1 h-10 ${
-                    checkout.discountApplied 
-                      ? "border-success-text focus:border-success-text" 
-                      : checkout.discountError 
-                      ? "border-danger-text focus:border-danger-text" 
-                      : ""
-                  }`}
-                />
-                <button 
-                  type="submit" 
-                  className="btn-secondary h-10 px-4 text-[12px] uppercase font-syne font-medium flex items-center gap-1.5"
-                >
-                  <Tag className="w-3.5 h-3.5" />
-                  Apply
-                </button>
-              </div>
-              {checkout.discountApplied && (
-                <p className="text-[11px] text-success-text mt-1.5 font-medium flex items-center gap-1">
-                  <Check className="w-3 h-3" />
-                  Promo applied: {checkout.discountPercentage}% OFF (Saved ${discountAmount.toFixed(2)})
-                </p>
+              {checkout.discountApplied ? (
+                <div className="flex items-center justify-between bg-bg-elevated border border-accent/40 rounded-lg px-3.5 py-2.5">
+                  <div className="flex items-center gap-2 text-text-primary">
+                    <Tag className="w-4 h-4 text-accent" />
+                    <span className="font-mono font-bold tracking-wider">{checkout.discountCode}</span>
+                    <span className="text-success-text text-xs font-medium">
+                      ({checkout.discountPercentage}% OFF)
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={removeDiscount}
+                    className="text-text-muted hover:text-danger-text p-1 transition-colors cursor-pointer flex items-center gap-1 text-xs"
+                    title="Remove promo code"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                    <span>Remove</span>
+                  </button>
+                </div>
+              ) : (
+                <form onSubmit={handlePromoApply} className="flex gap-2">
+                  <input
+                    type="text"
+                    placeholder="e.g. DRILL20, FREEBEAT"
+                    value={promoCode}
+                    onChange={(e) => setPromoCode(e.target.value)}
+                    className={`input flex-1 h-10 uppercase placeholder:normal-case ${
+                      checkout.discountError 
+                        ? "border-danger-text focus:border-danger-text" 
+                        : ""
+                    }`}
+                  />
+                  <button 
+                    type="submit" 
+                    disabled={isApplyingPromo || !promoCode.trim()}
+                    className="btn-secondary h-10 px-4 text-[12px] uppercase font-syne font-medium flex items-center gap-1.5 disabled:opacity-40 cursor-pointer"
+                  >
+                    {isApplyingPromo ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <Tag className="w-3.5 h-3.5" />
+                    )}
+                    Apply
+                  </button>
+                </form>
               )}
               {checkout.discountError && (
                 <p className="text-[11px] text-danger-text mt-1.5 font-medium">
                   {checkout.discountError}
                 </p>
               )}
-            </form>
+            </div>
 
             {/* Pricing Summary */}
             <div className="border-t border-b border-border-subtle py-4 mb-6 flex flex-col gap-2">
@@ -293,18 +322,30 @@ export default function CheckoutModal() {
                 <span className="font-mono">${basePrice.toFixed(2)}</span>
               </div>
 
-              {checkout.discountApplied && (
-                <div className="flex justify-between items-center text-[13px] text-success-text font-medium">
-                  <span>Promo discount ({checkout.discountPercentage}%)</span>
-                  <span className="font-mono">-${discountAmount.toFixed(2)}</span>
-                </div>
-              )}
-
               {isBulkDiscount && (
                 <div className="flex justify-between items-center text-[13px] text-success-text font-medium">
                   <span>Bulk Discount Applied ({bulkDiscountPercentage}%)</span>
                   <span className="font-mono">-${bulkDiscountAmount.toFixed(2)}</span>
                 </div>
+              )}
+
+              {discountAmount > 0 && (
+                <div className="flex justify-between items-center text-[13px] text-success-text font-medium">
+                  <span>Promo Code ({checkout.discountCode})</span>
+                  <span className="font-mono">-${discountAmount.toFixed(2)}</span>
+                </div>
+              )}
+
+              {stackConflict === "bulk_won" && (
+                <p className="text-[10px] text-text-muted italic text-right">
+                  Bulk discount savings exceed promo code (non-stackable)
+                </p>
+              )}
+
+              {stackConflict === "code_won" && (
+                <p className="text-[10px] text-text-muted italic text-right">
+                  Promo code savings exceed bulk discount (non-stackable)
+                </p>
               )}
 
               <div className="flex justify-between items-center text-[15px] text-text-primary font-bold pt-2 border-t border-dashed border-border-subtle">

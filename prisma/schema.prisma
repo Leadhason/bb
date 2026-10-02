@@ -102,10 +102,9 @@ model Store {
   name             String
   bio              String   @default("")
   profileImageUrl  String?
-  twitterUrl       String?
+  youtubeUrl       String?
   instagramUrl     String?
-  tiktokUrl        String?
-  discordUrl       String?
+  contactEmail     String?
   featuredBeatIds  String[] @default([])
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt

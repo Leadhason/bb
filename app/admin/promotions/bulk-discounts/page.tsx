@@ -31,7 +31,7 @@ export default async function BulkDiscountsPage() {
         </div>
         <Link
           href="/admin/promotions/bulk-discounts/new"
-          className="flex items-center gap-2 px-4 py-2 bg-accent hover:bg-opacity-90 text-white font-syne font-medium text-sm rounded-md transition-colors"
+          className="btn-primary flex items-center gap-2 text-sm font-medium"
         >
           <Plus className="w-4 h-4" />
           New Rule
@@ -58,7 +58,7 @@ export default async function BulkDiscountsPage() {
           </p>
           <Link
             href="/admin/promotions/bulk-discounts/new"
-            className="inline-flex items-center gap-2 px-4 py-2 bg-accent hover:bg-opacity-90 text-white font-syne font-medium text-sm rounded-md transition-colors"
+            className="btn-primary inline-flex items-center gap-2 text-sm font-medium"
           >
             <Plus className="w-4 h-4" />
             Create Bulk Discount
