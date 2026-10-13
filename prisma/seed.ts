@@ -19,10 +19,9 @@ async function main() {
       name: "LeaderSon Beats",
       bio: "Premium trap, drill, and hiphop beats crafted for independent artists. High-quality production with flexible licensing.",
       profileImageUrl: "https://images.unsplash.com/photo-1511379938547-c1f69b13d835?w=200&h=200&fit=crop",
-      twitterUrl: "https://twitter.com/leadersonbeats",
+      youtubeUrl: "https://youtube.com/@leadersonbeats",
       instagramUrl: "https://instagram.com/leadersonbeats",
-      tiktokUrl: "https://tiktok.com/@leadersonbeats",
-      discordUrl: "https://discord.gg/leadersonbeats",
+      contactEmail: "contact@leadersonbeats.com",
       featuredBeatIds: [],
     },
   });
