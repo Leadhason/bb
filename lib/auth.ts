@@ -1,17 +1,11 @@
 import { currentUser } from "@clerk/nextjs/server";
+import {
+  getProducerClerkIds,
+  isProducerId,
+  getProducerClerkId,
+} from "./producers";
 
-/**
- * Get the producer's Clerk ID from environment
- */
-function getProducerClerkId(): string {
-  const producerId = process.env.NEXT_PUBLIC_PRODUCER_CLERK_ID || process.env.PRODUCER_CLERK_ID;
-  if (!producerId) {
-    throw new Error(
-      "PRODUCER_CLERK_ID environment variable not set. Please configure the producer's Clerk ID."
-    );
-  }
-  return producerId;
-}
+export { getProducerClerkIds, isProducerId, getProducerClerkId };
 
 /**
  * Check if current user is authenticated
@@ -28,8 +22,7 @@ export async function isProducer() {
   const user = await currentUser();
   if (!user) return false;
 
-  const producerClerkId = getProducerClerkId();
-  return user.id === producerClerkId;
+  return isProducerId(user.id);
 }
 
 /**

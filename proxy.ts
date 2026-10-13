@@ -1,4 +1,5 @@
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
+import { getProducerClerkIds, isProducerId } from "./lib/producers";
 
 const isProtectedRoute = createRouteMatcher([
   "/dashboard(.*)",
@@ -13,25 +14,23 @@ export default clerkMiddleware(async (auth, req) => {
     await auth.protect();                    // ✅ protect() is on the helper
 
     const { userId } = await auth();         // ✅ userId comes from calling auth()
-    const producerClerkId =
-      process.env.NEXT_PUBLIC_PRODUCER_CLERK_ID ||
-      process.env.PRODUCER_CLERK_ID;
+    const producerClerkIds = getProducerClerkIds();
 
     // Admin route: only producer can access
     if (isAdminRoute(req)) {
-      if (!producerClerkId) {
-        console.warn("⚠️  PRODUCER_CLERK_ID not set. All authenticated users can access admin.");
+      if (producerClerkIds.length === 0) {
+        console.warn("⚠️  PRODUCER_CLERK_IDS not set. All authenticated users can access admin.");
         return;
       }
 
-      if (!userId || userId !== producerClerkId) {
+      if (!userId || !isProducerId(userId)) {
         return Response.redirect(new URL("/unauthorized", req.url));
       }
     }
 
     // Dashboard route: customers only (producers cannot access)
     if (isDashboardRoute(req)) {
-      if (producerClerkId && userId === producerClerkId) {
+      if (isProducerId(userId)) {
         // Producer trying to access customer dashboard
         return Response.redirect(new URL("/admin", req.url));
       }

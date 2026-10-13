@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback, useId } from "react";
 import { useUser } from "@clerk/nextjs";
+import { isProducerId } from "../lib/producers";
 
 export interface Beat {
   id: string;
@@ -176,22 +177,14 @@ export function StoreProvider({ children, initialBeats = [] }: { children: React
   const { user } = useUser();
   const [isProducer, setIsProducer] = useState(false);
 
-  // Detect if current user is the producer
+  // Detect if current user is one of the producers
   useEffect(() => {
     if (!user) {
       setIsProducer(false);
       return;
     }
 
-    const producerClerkId =
-      process.env.NEXT_PUBLIC_PRODUCER_CLERK_ID || 
-      process.env.PRODUCER_CLERK_ID;
-
-    if (producerClerkId && user.id === producerClerkId) {
-      setIsProducer(true);
-    } else {
-      setIsProducer(false);
-    }
+    setIsProducer(isProducerId(user.id));
   }, [user]);
 
   // Beats state

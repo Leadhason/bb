@@ -3,6 +3,7 @@ import prisma from "@/lib/prisma";
 import { initializePaystackTransaction } from "@/lib/paystack";
 import { resend } from "@/lib/resend";
 import { clerkClient } from "@clerk/nextjs/server";
+import { getProducerClerkIds } from "@/lib/producers";
 
 export async function POST(req: NextRequest) {
   try {
@@ -301,23 +302,36 @@ export async function POST(req: NextRequest) {
             });
           }
 
-          // Email 3: To Producer
-          const producerClerkId = process.env.NEXT_PUBLIC_PRODUCER_CLERK_ID || process.env.PRODUCER_CLERK_ID;
-          let producerEmail = "producer@yourbeats.com";
-          if (producerClerkId) {
+          // Email 3: To Producer(s)
+          const producerIds = getProducerClerkIds();
+          let producerEmails: string[] = [];
+          if (producerIds.length > 0) {
             try {
               const client = await clerkClient();
-              const prodUser = await client.users.getUser(producerClerkId);
-              producerEmail = prodUser.primaryEmailAddress?.emailAddress || producerEmail;
+              for (const pid of producerIds) {
+                try {
+                  const prodUser = await client.users.getUser(pid);
+                  const email = prodUser.primaryEmailAddress?.emailAddress;
+                  if (email && !producerEmails.includes(email)) {
+                    producerEmails.push(email);
+                  }
+                } catch (e) {
+                  console.error(`Failed to fetch producer email for ${pid}:`, e);
+                }
+              }
             } catch (e) {
-              console.error("Failed to fetch producer email:", e);
+              console.error("Failed to fetch producer emails:", e);
             }
+          }
+
+          if (producerEmails.length === 0) {
+            producerEmails = ["producer@yourbeats.com"];
           }
 
           const beatNames = itemsToPurchase.map((item) => item.title).join(", ");
           await resend.emails.send({
             from: "Beat Store <noreply@yourbeats.com>",
-            to: producerEmail,
+            to: producerEmails.length === 1 ? producerEmails[0] : producerEmails,
             subject: `New sale — ${beatNames} · Giveaway · $0`,
             html: `
               <div style="background:#0a0a0a;padding:40px 24px;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
